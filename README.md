@@ -1,2 +1,1 @@
-# hilucsi4m
-
+# HILUCSI MATLAB Interface #
