@@ -2,7 +2,8 @@ function build_hilucsi4m(force)
 % script for building hilucsi4m
 
 if nargin < 1; force = false; end
-mods = {'mex/hilucsi4m_mex'};
+mods = {'mex/hilucsi4m_mex', ...
+    'matlab/private/hilucsi4m_ijv2crs'};
 cur_dir = pwd;
 cd(hilucsi4m_root);
 if system('git submodule update --init hilucsi')
