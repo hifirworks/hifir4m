@@ -1,0 +1,9 @@
+*.so
+*.mex*
+*~
+.ycm_extra_conf.py
+.vscode
+*.mat
+.DS_Store
+.*swp
+*.o

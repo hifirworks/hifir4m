@@ -1,0 +1,3 @@
+[submodule "hilucsi"]
+	path = hilucsi
+	url = git@bitbucket.org:numgeom/hilucsi.git
