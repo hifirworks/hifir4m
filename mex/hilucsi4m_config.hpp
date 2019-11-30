@@ -24,8 +24,6 @@
 
 // mex
 #include "mex.h"
-// matlab LAPACK
-#include "lapack.h"
 
 // configure the printing to matlab command window stead of stdout/stderr
 #ifdef HILUCSI_STDOUT
@@ -47,12 +45,6 @@
 #ifndef HILUCSI_THROW
 #  define HILUCSI_THROW
 #endif  // HILUCSI_THROW
-
-// handle Fortran name mangling
-#ifdef HILUCSI_FC
-#  undef HILUCSI_FC
-#endif
-#define HILUCSI_FC(__l, __U) FORTRAN_WRAPPER(__l)
 
 // lapack integer
 #ifdef HILUCSI_LAPACK_INT
