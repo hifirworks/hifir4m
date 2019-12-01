@@ -33,6 +33,12 @@
 
 namespace hilucsi4m {
 // structure of preconditioner and solver
+
+/**
+ * @brief Database structure
+ *
+ * @tparam IsMixed Flag indicate if or not the database uses mixed precision
+ */
 template <bool IsMixed>
 struct HILUCSI4M_Database {
   using prec_t        = hilucsi::DefaultHILUCSI;  ///< preconditioner type
@@ -63,6 +69,14 @@ enum {
   HILUCSI4M_DESTROY = 2,  ///< destroy database
 };
 
+/**
+ * @brief unified interface for database query/creation/deletion
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] action Action flag
+ * @param[in,out] id If action is creation, then output the new ID
+ * @return A pointer of to the database is returned
+ */
 template <bool IsMixed>
 inline HILUCSI4M_Database<IsMixed> *database(const int action, int &id) {
   // create database
@@ -98,6 +112,16 @@ inline HILUCSI4M_Database<IsMixed> *database(const int action, int &id) {
   }
 }
 
+/**
+ * @brief Create a opt from a MATLAB structure
+ *
+ * @param[in] rhs MATLAB mex array
+ * @return hilucsi::Options control parameters for HILUCSI
+ *
+ * @note This routine requires the field ordering in the matlab structure
+ *       follows the sames order as how the attributes appear in the C++
+ *       struct definition.
+ */
 inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
   if (!mxIsStruct(rhs))
     mexErrMsgIdAndTxt("hilucsi4m:options:badInput", "input must be structure");
@@ -130,6 +154,22 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
 }
 
 // helper function to parse CSR matrix
+
+/**
+ * @brief Helper function to convert MATLAB arrays of CRS to raw pointer
+ *
+ * @param[in] prefix MATLAB message ID prefix (for error output purpose)
+ * @param[in] rowptr row pointer mex array
+ * @param[in] colind column index mex array
+ * @param[in] val value mex array
+ * @param[out] rptr_ output pointer to the \a rowptr array
+ * @param[out] cptr_ output pointer to the \a column array
+ * @param[out] vptr_ output pointer to the \a val array
+ * @param[out] n_ size of the system
+ *
+ * @note This routine assumes 0-based index of rowptr/column, in addition, the
+ *       mex arrays must maintain valid while accessing the output pointers.
+ */
 inline void convert_crs_mx2pointer(const std::string &prefix,
                                    const mxArray *rowptr, const mxArray *colind,
                                    const mxArray *val, int **rptr_, int **cptr_,
@@ -155,6 +195,18 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
 }
 
 // factorization
+
+/**
+ * @brief Factorize an HILUCSI instance
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] id ID tag of the database
+ * @param[in] rowptr row pointer mex array (int32)
+ * @param[in] colind column index mex array (int32)
+ * @param[in] val value mex array (double)
+ * @param[in] opt control parameter (1x1 structure)
+ * @return overhead-free factorization wall-clock time
+ */
 template <bool IsMixed>
 inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
                         const mxArray *val, const mxArray *opt) {
@@ -186,6 +238,16 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
 }
 
 // M solver (preconditioner solve)
+
+/**
+ * @brief Accessing inv(M)
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] id ID tag of the database
+ * @param[in] rhs right-hand side vector
+ * @param[out] lhs left-hand side result, i.e., lhs=inv(A)*rhs
+ * @return double overhead-free wall-clock time
+ */
 template <bool IsMixed>
 inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
@@ -209,13 +271,31 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
     data->M->solve(b, x);
   } catch (const std::exception &e) {
     mexErrMsgIdAndTxt("hilucsi4m:M_solve:failedSolve",
-                      "M_solve failed with message:\n", e.what());
+                      "M_solve failed with message:\n%s", e.what());
   }
   timer.finish();
   return timer.time();  // give M solve time to the user
 }
 
 // KSP solve
+
+/**
+ * @brief Solving with FGMRES solver
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] id ID tag of the database
+ * @param[in] restart Restart of GMRES (30)
+ * @param[in] max_iter Maximum iteration allowed (500)
+ * @param[in] rtol Relative tolerance for residual convergence (1e-6)
+ * @param[in] verbose Verbose flag (true)
+ * @param[in] rowptr rowptr row pointer mex array (int32)
+ * @param[in] colind colind column index mex array (int32)
+ * @param[in] val value mex array (double)
+ * @param[in] rhs Right-hand side b vector
+ * @param[in,out] lhs Left-hand side solution and initial guess vector
+ * @return A tuple of flag, iterations and overhead-free wall-clock time are
+ *         returned in this routine.
+ */
 template <bool IsMixed>
 inline std::tuple<int, int, double> KSP_solve(
     int id, const int restart, const int max_iter, const double rtol,
@@ -262,7 +342,7 @@ inline std::tuple<int, int, double> KSP_solve(
                                       true /* always with guess */, verbose);
   } catch (const std::exception &e) {
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
-                      "KSP_solve failed with message:\n", e.what());
+                      "KSP_solve failed with message:\n%s", e.what());
   }
   timer.finish();
   const double tt = timer.time();
