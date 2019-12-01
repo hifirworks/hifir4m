@@ -256,6 +256,7 @@ inline std::tuple<int, int, double> KSP_solve(
   hilucsi::DefaultTimer timer;
   int                   flag;
   std::size_t           iters;
+  timer.start();
   try {
     std::tie(flag, iters) = ksp.solve(A, b, x, hilucsi::ksp::TRADITION,
                                       true /* always with guess */, verbose);
