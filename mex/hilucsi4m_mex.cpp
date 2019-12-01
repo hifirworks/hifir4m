@@ -179,12 +179,11 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                         "FGMRES failed with flag %d and message:\n%s", flag,
                         msg);
     }
-    return;
+  } else {
+    plhs[1] = mxCreateDoubleScalar((double)flag);
+    if (nlhs > 2) plhs[2] = mxCreateDoubleScalar((double)iters);
+    if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(tt);
   }
-  prhs[1] = mxCreateDoubleScalar((double)flag);
-  if (nlhs > 2) prhs[2] = mxCreateDoubleScalar((double)iters);
-  if (nlhs > 3) prhs[3] = mxCreateDoubleScalar(tt);
-  return;
 }
 
 static bool decode_database_struct(const mxArray* rhs, int& id,
