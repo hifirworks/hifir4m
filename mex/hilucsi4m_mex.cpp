@@ -105,13 +105,12 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
           "dy_deferrals", "drops", "space_drops"};
       // create an information structure
       mwSize info[7];
-      mwSize nnz, nnz_ef, deferrals, dy_deferrals, drops, space_drops, lvls;
       if (!is_mixed)
         get_fac_info<false>(id, info[1], info[2], info[3], info[4], info[5],
                             info[6], info[0]);
       else
-        get_fac_info<true>(id, nnz, nnz_ef, deferrals, dy_deferrals, drops,
-                           space_drops, lvls);
+        get_fac_info<true>(id, info[1], info[2], info[3], info[4], info[5],
+                           info[6], info[0]);
       plhs[1] = mxCreateStructMatrix(1, 1, 7, fac_info_names);
       for (int i = 0; i < 7; ++i) {
         auto mx_ptr = mxCreateUninitNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
