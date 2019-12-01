@@ -35,11 +35,18 @@
 #define HILUCSI_STDOUT(__msg) \
   do {                        \
     mexPrintf(__msg);         \
+    mexPrintf("\n");          \
   } while (false)
 #define HILUCSI_STDERR(__msg) \
   do {                        \
     mexWarnMsgTxt(__msg);     \
+    mexWarnMsgTxt("\n");      \
   } while (false)
+
+// No ASCII color
+#ifndef HILUCSI_LOG_PLAIN_PREFIX
+#  define HILUCSI_LOG_PLAIN_PREFIX
+#endif
 
 // enforce throw instead of calling abort!
 #ifndef HILUCSI_THROW
