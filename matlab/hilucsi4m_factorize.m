@@ -48,7 +48,7 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% Nov 2019; Last revision: 11/30/2019
+% License: GLPv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
@@ -62,6 +62,6 @@ if nargin < 3 || isempty(opts);  end
 [rowptr, colind, vals] = hilucsi4m_sp2crs(A);
 [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_FACTORIZE, dbase, rowptr, ...
     colind, vals, opts);
-end
 
 %-------------------------- END MAIN CODE -------------------------------%
+end

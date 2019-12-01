@@ -1,5 +1,41 @@
 function opts = hilucsi4m_create_options(varargin)
 %HILUCSI4M_CREATE_OPTIONS - Create options for HILUCSI preconditioner
+%
+% Syntax:
+%   opts = hilucsi4m_create_options
+%   opts = hilucsi4m_create_options(OptionFieldName, OptionValue)
+%
+% Description:
+%   HILUCSI4M_CREATE_OPTIONS constructs the control parameters used in
+%   factorizing HILUCSI preconditioner. The parameters are well-documented
+%   in the c++ code thus omitting here.
+%
+%   opts = hilucsi4m_create_options gets the default parameters
+%
+%   opts = hilucsi4m_create_options(OptionFieldName, OptionValue) mimics
+%   the MATLAB parameter syntax (key, value), which is commonly used (e.g.
+%   in 2-D line plotting). Available option field names are
+%       tau_L, tau_U, tau_d, tau_kappa, alpha_L, alpha_U, rho, c_d,
+%       c_h, N, verbose, rf_par, reorder, saddle, check, pre_scale,
+%       symm_pre_lvls, threads,
+%   whose meanings are documented in the c++ code.
+%
+% Examples:
+%   To get default constrol parameters
+%       >> opts = hilucsi4m_create_options;
+%
+%   To customize parameters
+%       >> opts = hilucsi4m_create_options('tau_L', 1e-3, 'tau_U', 1e-3);
+%       >> assert(opts.tau_L == 1e-3);
+%
+% See Also:
+%   HILUCSI4M_FACTORIZE
+
+% Author: Qiao Chen
+% Email: qiao.chen@stonybrook.edu
+% License: GLPv3+
+
+%------------------------- BEGIN MAIN CODE ------------------------------%
 
 persistent fnames
 if isempty(fnames)
@@ -35,4 +71,6 @@ for idx = 1:length(fnames)
     f = fnames{idx};
     opts = setfield(opts, f, getfield(sorted_opts, f));
 end
+
+%-------------------------- END MAIN CODE -------------------------------%
 end

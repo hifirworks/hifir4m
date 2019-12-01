@@ -4,12 +4,9 @@ function build_hilucsi4m(force)
 if nargin < 1; force = false; end
 mods = {'mex/hilucsi4m_mex', ...
     'matlab/private/hilucsi4m_ijv2crs'};
-cur_dir = pwd;
-cd(hilucsi4m_root);
 if system('git submodule update --init hilucsi')
     fprintf(2, 'Warning! Failed to update submodule HILUCSI\n');
 end
-cd(cur_dir);
 for m = 1:length(mods)
     md = mods{m};
     src = fullfile(hilucsi4m_root, [md '.cpp']);

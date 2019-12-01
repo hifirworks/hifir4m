@@ -6,7 +6,7 @@ classdef HILUCSI
     %   fashion, which can be benefitial for certain programmers.
     
     properties (Access = protected)
-        dbase
+        dbase  % internal database structure
     end
     
     methods
@@ -30,7 +30,16 @@ classdef HILUCSI
         
         function flag = is_mixed(obj)
             %IS_MIXED - Check if the HILUCSI instance is mixed precision
+            %
+            % See Also: ID
             flag = obj.dbase.is_mixed;
+        end
+        
+        function id_ = id(obj)
+            %ID - Get the ID tag of the database
+            %
+            % See Also: IS_MIXED
+            id_ = obj.dbase.id;
         end
         
         function varargout = factorize(obj, A, varargin)
