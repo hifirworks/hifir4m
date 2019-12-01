@@ -247,7 +247,7 @@ inline std::tuple<int, int, double> KSP_solve(
   hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
   // arrays
   using array_t = hilucsi::Array<double>;
-  array_t b(n, mxGetPr(rhs), true), x(n, mxGetPr(lhs));
+  array_t b(n, mxGetPr(rhs), true), x(n, mxGetPr(lhs), true);
 
   if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
   if (max_iter > 0) ksp.set_maxit(max_iter);
