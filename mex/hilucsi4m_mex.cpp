@@ -160,16 +160,17 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxCreateDoubleMatrix(mxGetM(prhs[5]), 1, mxREAL);
   }
   const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
+  const bool update  = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
   int        flag, iters;
   double     tt;
   if (is_mixed)
     std::tie(flag, iters, tt) =
         hilucsi4m::KSP_solve<true>(id, restart, maxit, rtol, verbose, prhs[2],
-                                   prhs[3], prhs[4], prhs[5], plhs[0]);
+                                   prhs[3], prhs[4], prhs[5], plhs[0], update);
   else
     std::tie(flag, iters, tt) =
         hilucsi4m::KSP_solve<false>(id, restart, maxit, rtol, verbose, prhs[2],
-                                    prhs[3], prhs[4], prhs[5], plhs[0]);
+                                    prhs[3], prhs[4], prhs[5], plhs[0], update);
   if (nlhs < 2) {
     // handle flag
     if (flag) {

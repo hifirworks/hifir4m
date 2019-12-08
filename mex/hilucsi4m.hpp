@@ -34,6 +34,37 @@
 namespace hilucsi4m {
 // structure of preconditioner and solver
 
+template <class MType, class ValueType = void>
+class OperatorUpdateSolver
+    : public hilucsi::ksp::UserOperatorBase<MType, ValueType> {
+  using _base = hilucsi::ksp::UserOperatorBase<MType, ValueType>;
+
+ public:
+  using array_type = typename _base::array_type;
+  using M_type     = typename _base::M_type;
+  using size_type  = typename _base::size_type;
+
+  OperatorUpdateSolver() = delete;
+
+  explicit OperatorUpdateSolver(const M_type &M) : _base(M), _v(M.nrows()) {}
+
+  template <class Matrix>
+  inline bool solve(const Matrix &A, const array_type &b, const size_type,
+                    array_type &x0) const {
+    // step 1: (2*I-A*inv(M)) * b
+    _base::solve(A, b, size_type(0), _v);
+    hilucsi::mt::mv_nt(A, _v, x0);
+    const size_type n = _v.size();
+    for (size_type i(0); i < n; ++i) _v[i] = 2.0 * b[i] - x0[i];
+    // step 2: inv(M)*v
+    _base::solve(A, _v, size_type(0), x0);
+    return false;
+  }
+
+ protected:
+  mutable array_type _v;  ///< workspace
+};
+
 /**
  * @brief Database structure
  *
@@ -44,7 +75,8 @@ struct HILUCSI4M_Database {
   using prec_t        = hilucsi::DefaultHILUCSI;  ///< preconditioner type
   using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t>;
   ///< KSP factory type
-  using solver_t = ksp_factory_t::fgmres;  ///< FMGRES type
+  using solver_t          = ksp_factory_t::fgmres;  ///< FMGRES type
+  using update_operator_t = OperatorUpdateSolver<prec_t>;
 
   std::shared_ptr<prec_t> M;    ///< preconditioner attribute
   solver_t                ksp;  ///< KSP solver
@@ -58,6 +90,7 @@ struct HILUCSI4M_Database<true> {
   ///< KSP factory type
   using solver_t = ksp_factory_t::fgmres;
   ///< FMGRES type
+  using update_operator_t = OperatorUpdateSolver<prec_t, double>;
 
   std::shared_ptr<prec_t> M;    ///< preconditioner attribute
   solver_t                ksp;  ///< KSP solver
@@ -300,7 +333,8 @@ template <bool IsMixed>
 inline std::tuple<int, int, double> KSP_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
-    const mxArray *val, const mxArray *rhs, mxArray *lhs) {
+    const mxArray *val, const mxArray *rhs, mxArray *lhs,
+    const bool update = false) {
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
   if (!data->M)
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:emptyM", "M has not yet factorized");
@@ -338,8 +372,14 @@ inline std::tuple<int, int, double> KSP_solve(
   std::size_t           iters;
   timer.start();
   try {
-    std::tie(flag, iters) = ksp.solve(A, b, x, hilucsi::ksp::TRADITION,
-                                      true /* always with guess */, verbose);
+    if (!update)
+      std::tie(flag, iters) = ksp.solve(A, b, x, hilucsi::ksp::TRADITION,
+                                        true /* always with guess */, verbose);
+    else {
+      const auto M =
+          typename HILUCSI4M_Database<IsMixed>::update_operator_t(*data->M);
+      std::tie(flag, iters) = ksp.solve_user(A, M, b, x, true, verbose);
+    }
   } catch (const std::exception &e) {
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
                       "KSP_solve failed with message:\n%s", e.what());
