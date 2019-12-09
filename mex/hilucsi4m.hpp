@@ -78,8 +78,8 @@ struct HILUCSI4M_Database {
   using solver_t          = ksp_factory_t::fgmres;  ///< FMGRES type
   using update_operator_t = OperatorUpdateSolver<prec_t>;
 
-  std::shared_ptr<prec_t> M;    ///< preconditioner attribute
-  solver_t                ksp;  ///< KSP solver
+  std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
+  std::shared_ptr<solver_t> ksp;  ///< KSP solver
 };
 
 // structure of preconditioner with mixed precision
@@ -92,8 +92,8 @@ struct HILUCSI4M_Database<true> {
   ///< FMGRES type
   using update_operator_t = OperatorUpdateSolver<prec_t, double>;
 
-  std::shared_ptr<prec_t> M;    ///< preconditioner attribute
-  solver_t                ksp;  ///< KSP solver
+  std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
+  std::shared_ptr<solver_t> ksp;  ///< KSP solver
 };
 
 enum {
@@ -335,6 +335,8 @@ inline std::tuple<int, int, double> KSP_solve(
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs,
     const bool update = false) {
+  using ksp_t = typename HILUCSI4M_Database<IsMixed>::solver_t;
+
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
   if (!data->M)
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:emptyM", "M has not yet factorized");
@@ -354,7 +356,8 @@ inline std::tuple<int, int, double> KSP_solve(
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
                       "rhs size does not agree with lhs, M or A");
 
-  auto &ksp = data->ksp;
+  data->ksp.reset(new ksp_t(data->M));
+  auto &ksp = *data->ksp;
   ksp.set_M(data->M);  // setup preconditioner
 
   // create csr wrapper from HILUCSI
@@ -386,6 +389,7 @@ inline std::tuple<int, int, double> KSP_solve(
   }
   timer.finish();
   const double tt = timer.time();
+  data->ksp.reset();  // free
   return std::make_tuple(flag, (int)iters, tt);
 }
 }  // namespace hilucsi4m

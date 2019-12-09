@@ -52,6 +52,12 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
+via_file = false;
+if iscell(A)
+    assert(length(A) == 2);
+    via_file = true;
+    A = getfield(load(A{1}, A{2}), A{2});
+end
 if ~isempty(varargin) && isstruct(varargin{1})
     opts = varargin{1};  % ignore whatever goes after the first one
 else
@@ -60,6 +66,7 @@ end
 if nargin < 3 || isempty(opts);  end
 % convert A to zero-based CRS
 [rowptr, colind, vals] = hilucsi4m_sp2crs(A);
+if via_file; clear A; end
 [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_FACTORIZE, dbase, rowptr, ...
     colind, vals, opts);
 
