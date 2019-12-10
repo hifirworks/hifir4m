@@ -21,7 +21,8 @@ for m = 1:length(mods)
         'CXXFLAGS="$CXXFLAGS -O3 -std=c++11 -fopenmp" ' ... % C++11/OpenMP compiler
         '-I' fullfile(hilucsi4m_root, 'hilucsi', 'src') ' ' ... % include
         '-v -O ' r2017 ' -output ' mx ' ' src ...
-        ' -lmwblas -lmwlapack'];  % link to MATLAB Lapack/BLAS
+        ' -lmwblas -lmwlapack' ...  % link to MATLAB Lapack/BLAS
+        ' -lmwservices'];  % link to internal ioFlush
     try
         disp(cmd);
         eval(cmd);
