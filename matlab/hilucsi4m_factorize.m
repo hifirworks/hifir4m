@@ -30,6 +30,11 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 %   some information field of interests resulting from the factorization
 %   computation.
 %
+%   It is worth noting that the variable A can also be a set of length 2,
+%   in which the first element is a matfile (by name) containing the target
+%   sparse matrix whose variable name is given by the second element in A.
+%   The matrix will be cleared once it has been converted into CRS.
+%
 % Examples:
 %   To simply factorize a sparse matrix, we can
 %       >> dbase = hilucsi4m_initialize;
@@ -42,6 +47,12 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 %
 %   Supply your own control options
 %       >> hilucsi4m_factorize(dbase, A, 'symm_pre_lvls', 2); % 2 level symm
+%
+%   Pass the matrix via MATFILE
+%       >> A = sprand(10, 10, 0.5);
+%       >> save test.mat A
+%       >> clear A
+%       >> hilucsi4m_factorize(dbase, {'test.mat', 'A'});
 %
 % See Also:
 %   HILUCSI4M_INITIALIZE, HILUCSI4M_CREATE_OPTIONS, HILUCSI4M_FGMRES

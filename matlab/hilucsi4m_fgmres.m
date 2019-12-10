@@ -11,6 +11,7 @@ function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
 %   [x, flag] = hilucsi4m_fgmres(___)
 %   [x, flag, iters] = hilucsi4m_fgmres(___)
 %   [x, flag, iters, t] = hilucsi4m_fgmres(___)
+%   [___] = hilucsi4m_fgmres(___, update)
 %
 % Description:
 %   HILUCSI4M_FGMRES is an optimized serial implementation of
@@ -44,6 +45,9 @@ function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
 %           <0 - input errors
 %       iters - total iterations used
 %       t - solving wall-clock time (no MATLAB interperater overhead)
+%
+%   [___] = hilucsi4m_fgmres(___, update) indicates using updated kernel
+%   for the preconditioner.
 %
 % Examples:
 %   The following example shows how to use the FGMRES solver
