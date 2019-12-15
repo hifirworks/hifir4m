@@ -35,6 +35,13 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 %   sparse matrix whose variable name is given by the second element in A.
 %   The matrix will be cleared once it has been converted into CRS.
 %
+%   For those who are directly working with CRS in MATLAB, they can wrap their
+%   CRS matrix into a structure with fields:
+%       row_ptr - starting position array (offset)
+%       col_ind - column index array
+%       val     - value array
+%   Notice that for structure input, the row_ptr and col_ind must be int32
+%
 % Examples:
 %   To simply factorize a sparse matrix, we can
 %       >> dbase = hilucsi4m_initialize;
@@ -54,6 +61,12 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 %       >> clear A
 %       >> hilucsi4m_factorize(dbase, {'test.mat', 'A'});
 %
+%   Using struct
+%       >> A.row_ptr = int32(...);
+%       >> A.col_ind = int32(...);
+%       >> A.val = ...;
+%       >> hilucsi4m_factorize(dbase, A);
+%
 % See Also:
 %   HILUCSI4M_INITIALIZE, HILUCSI4M_CREATE_OPTIONS, HILUCSI4M_FGMRES
 
@@ -63,10 +76,8 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
-via_file = false;
 if iscell(A)
     assert(length(A) == 2);
-    via_file = true;
     A = getfield(load(A{1}, A{2}), A{2});
 end
 if ~isempty(varargin) && isstruct(varargin{1})
@@ -76,10 +87,11 @@ else
 end
 if nargin < 3 || isempty(opts);  end
 % convert A to zero-based CRS
-[rowptr, colind, vals] = hilucsi4m_sp2crs(A);
-if via_file; clear A; end
-[varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_FACTORIZE, dbase, rowptr, ...
-    colind, vals, opts);
+if issparse(A); A = hilucsi4m_sp2crs(A); end
+assert(isa(A.row_ptr, 'int32'));
+assert(isa(A.col_ind, 'int32'));
+[varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_FACTORIZE, dbase, ...
+    A.row_ptr, A.col_ind, A.val, opts);
 
 %-------------------------- END MAIN CODE -------------------------------%
 end
