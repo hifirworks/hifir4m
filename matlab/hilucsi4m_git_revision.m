@@ -37,6 +37,10 @@ function rev = hilucsi4m_git_revision(pkg, rev_type)
 % See Also:
 %   HILUCSI4M_ROOT
 
+% Author: Qiao Chen
+% Email: qiao.chen@stonybrook.edu
+% License: GLPv3+
+
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
 if nargin < 1 || isempty(pkg); pkg = 'hilucsi4m'; end
