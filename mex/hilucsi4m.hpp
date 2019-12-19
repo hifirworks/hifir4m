@@ -326,11 +326,11 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
  * @param[in] val value mex array (double)
  * @param[in] rhs Right-hand side b vector
  * @param[in,out] lhs Left-hand side solution and initial guess vector
- * @return A tuple of flag, iterations and overhead-free wall-clock time are
- *         returned in this routine.
+ * @return A tuple of flag, iterations, final residual and overhead-free
+ *          wall-clock time are returned in this routine.
  */
 template <bool IsMixed>
-inline std::tuple<int, int, double> KSP_solve(
+inline std::tuple<int, int, double, double> KSP_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs,
@@ -388,9 +388,10 @@ inline std::tuple<int, int, double> KSP_solve(
                       "KSP_solve failed with message:\n%s", e.what());
   }
   timer.finish();
-  const double tt = timer.time();
+  const double tt  = timer.time();
+  const double res = data->ksp->get_resids().back();
   data->ksp.reset();  // free
-  return std::make_tuple(flag, (int)iters, tt);
+  return std::make_tuple(flag, (int)iters, res, tt);
 }
 }  // namespace hilucsi4m
 

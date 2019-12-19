@@ -162,13 +162,13 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
   const bool update  = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
   int        flag, iters;
-  double     tt;
+  double     res, tt;
   if (is_mixed)
-    std::tie(flag, iters, tt) =
+    std::tie(flag, iters, res, tt) =
         hilucsi4m::KSP_solve<true>(id, restart, maxit, rtol, verbose, prhs[2],
                                    prhs[3], prhs[4], prhs[5], plhs[0], update);
   else
-    std::tie(flag, iters, tt) =
+    std::tie(flag, iters, res, tt) =
         hilucsi4m::KSP_solve<false>(id, restart, maxit, rtol, verbose, prhs[2],
                                     prhs[3], prhs[4], prhs[5], plhs[0], update);
   if (nlhs < 2) {
@@ -182,7 +182,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   } else {
     plhs[1] = mxCreateDoubleScalar((double)flag);
     if (nlhs > 2) plhs[2] = mxCreateDoubleScalar((double)iters);
-    if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(tt);
+    if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(res);
+    if (nlhs > 4) plhs[4] = mxCreateDoubleScalar(tt);
   }
 }
 
