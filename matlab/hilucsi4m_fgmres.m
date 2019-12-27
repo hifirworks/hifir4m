@@ -12,6 +12,7 @@ function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
 %   [x, flag, iters] = hilucsi4m_fgmres(___)
 %   [x, flag, iters, t] = hilucsi4m_fgmres(___)
 %   [___] = hilucsi4m_fgmres(___, update)
+%   [___] = hilucsi4m_fgmres(___, update, nsp_cst)
 %
 % Description:
 %   HILUCSI4M_FGMRES is an optimized serial implementation of
@@ -48,6 +49,11 @@ function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
 %
 %   [___] = hilucsi4m_fgmres(___, update) indicates using updated kernel
 %   for the preconditioner.
+%
+%   [___] = hilucsi4m_fgmres(___, update, nsp_cst) solves a singular problem
+%   with a (partial) constant mode that is specificed via a size-2 array
+%   nsp_cst, in which the first entry is the starting const mode entry while
+%   the ending index for the second element in nsp_cst
 %
 % Examples:
 %   The following example shows how to use the FGMRES solver
@@ -86,9 +92,15 @@ if isempty(x0); x0 = zeros(size(b)); end
 if issparse(A); A = hilucsi4m_sp2crs(A); end
 assert(isa(A.row_ptr, 'int32'));
 assert(isa(A.col_ind, 'int32'));
-[varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_SOLVE, dbase, ...
-    A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
-    gmres_pars(3), x0, verbose, update);
+if length(varargin) < 7 || isempty(varargin{7})
+    [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_SOLVE, dbase, ...
+        A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
+        gmres_pars(3), x0, verbose, update);
+else
+    [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_SOLVE, dbase, ...
+        A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
+        gmres_pars(3), x0, verbose, update, varargin{7});
+end
 
 %-------------------------- END MAIN CODE -------------------------------%
 end

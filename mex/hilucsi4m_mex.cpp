@@ -163,14 +163,28 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   const bool update  = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
   int        flag, iters;
   double     res, tt;
-  if (is_mixed)
-    std::tie(flag, iters, res, tt) =
-        hilucsi4m::KSP_solve<true>(id, restart, maxit, rtol, verbose, prhs[2],
-                                   prhs[3], prhs[4], prhs[5], plhs[0], update);
-  else
-    std::tie(flag, iters, res, tt) =
-        hilucsi4m::KSP_solve<false>(id, restart, maxit, rtol, verbose, prhs[2],
-                                    prhs[3], prhs[4], prhs[5], plhs[0], update);
+  if (nrhs < 13) {
+    if (is_mixed)
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0], update);
+    else
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0], update);
+  } else {
+    int cst_nsp[2];
+    cst_nsp[0] = *mxGetPr(prhs[12]);
+    cst_nsp[1] = *(mxGetPr(prhs[12]) + 1);
+    if (is_mixed)
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0], update, cst_nsp);
+    else
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0], update, cst_nsp);
+  }
   if (nlhs < 2) {
     // handle flag
     if (flag) {

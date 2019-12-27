@@ -183,6 +183,7 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
   opt.pre_scale     = get_field(15);
   opt.symm_pre_lvls = get_field(16);
   opt.threads       = get_field(17);
+  opt.fat_schur_1st = get_field(18);
   return opt;
 }
 
@@ -334,7 +335,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs,
-    const bool update = false) {
+    const bool update = false, const int *cst_nsp = nullptr) {
   using ksp_t = typename HILUCSI4M_Database<IsMixed>::solver_t;
 
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
@@ -370,6 +371,10 @@ inline std::tuple<int, int, double, double> KSP_solve(
   if (max_iter > 0) ksp.set_maxit(max_iter);
   if (rtol > 0.0) ksp.set_rtol(rtol);
 
+  // enable const null space filter
+  if (cst_nsp)
+    data->M->nsp.reset(new hilucsi::NspFilter(cst_nsp[0] - 1, cst_nsp[1]));
+
   hilucsi::DefaultTimer timer;
   int                   flag;
   std::size_t           iters;
@@ -391,6 +396,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
   const double tt  = timer.time();
   const double res = data->ksp->get_resids().back();
   data->ksp.reset();  // free
+  if (cst_nsp) data->M->nsp.reset(); // release const nullspace filter
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 }  // namespace hilucsi4m
