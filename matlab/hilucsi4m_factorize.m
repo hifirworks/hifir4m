@@ -78,7 +78,8 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 
 if iscell(A)
     assert(length(A) == 2);
-    A = getfield(load(A{1}, A{2}), A{2});
+    t = tic; A = getfield(load(A{1}, A{2}), A{2}); t = toc(t);
+    fprintf(1, 'HILUCSI4M factorization I/O time is %.4gs\n', t);
 end
 if ~isempty(varargin) && isstruct(varargin{1})
     opts = varargin{1};  % ignore whatever goes after the first one
