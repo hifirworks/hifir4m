@@ -25,6 +25,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include "hilucsi4m_config.hpp"
@@ -72,34 +73,45 @@ class OperatorUpdateSolver
  */
 template <bool IsMixed>
 struct HILUCSI4M_Database {
-  using prec_t        = hilucsi::DefaultHILUCSI;  ///< preconditioner type
-  using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t>;
-  ///< KSP factory type
-  using solver_t          = ksp_factory_t::fgmres;  ///< FMGRES type
-  using update_operator_t = OperatorUpdateSolver<prec_t>;
+ private:
+  using _value_type = typename std::conditional<IsMixed, double, void>::type;
 
+ public:
+  using prec_t =
+      typename std::conditional<IsMixed, hilucsi::HILUCSI<float, int>,
+                                hilucsi::DefaultHILUCSI>::type;
+  ///< preconditioner type
+  using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t, _value_type>;
+  ///< KSP factory type
+  using solver_t          = typename ksp_factory_t::fgmres;  ///< FMGRES type
+  using update_operator_t = OperatorUpdateSolver<prec_t, _value_type>;
+  ///< updated operator type
+  static constexpr bool IS_MIXED = IsMixed;  ///< mixed flag
+
+  // attributes
   std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
   std::shared_ptr<solver_t> ksp;  ///< KSP solver
 };
 
-// structure of preconditioner with mixed precision
-template <>
-struct HILUCSI4M_Database<true> {
-  using prec_t        = hilucsi::HILUCSI<float, int>;  ///< preconditioner type
-  using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t, double>;
-  ///< KSP factory type
-  using solver_t = ksp_factory_t::fgmres;
-  ///< FMGRES type
-  using update_operator_t = OperatorUpdateSolver<prec_t, double>;
+// // structure of preconditioner with mixed precision
+// template <>
+// struct HILUCSI4M_Database<true> {
+//   using prec_t        = hilucsi::HILUCSI<float, int>;  ///< preconditioner
+//   type using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t, double>;
+//   ///< KSP factory type
+//   using solver_t = ksp_factory_t::fgmres;
+//   ///< FMGRES type
+//   using update_operator_t = OperatorUpdateSolver<prec_t, double>;
 
-  std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
-  std::shared_ptr<solver_t> ksp;  ///< KSP solver
-};
+//   std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
+//   std::shared_ptr<solver_t> ksp;  ///< KSP solver
+// };
 
 enum {
   HILUCSI4M_CREATE  = 0,  ///< create database
   HILUCSI4M_GET     = 1,  ///< get database
-  HILUCSI4M_DESTROY = 2,  ///< destroy database
+  HILUCSI4M_CLEAR   = 2,  ///< clear database
+  HILUCSI4M_DESTROY = 3,  ///< destroy database
 };
 
 /**
@@ -130,6 +142,16 @@ inline HILUCSI4M_Database<IsMixed> *database(const int action, int &id) {
       if (!pool[id])
         mexErrMsgIdAndTxt("hilucsi4m:database:getDeadID",
                           "%d database has been destroyed", id);
+      return pool[id].get();
+    } break;
+    case HILUCSI4M_CLEAR: {
+      if (id < 0 || id >= (int)pool.size())
+        mexErrMsgIdAndTxt("hilucsi4m:database:getInvalidID",
+                          "%d is an invalid database ID", id);
+      if (!pool[id])
+        mexErrMsgIdAndTxt("hilucsi4m:database:getDeadID",
+                          "%d database has been destroyed", id);
+      pool[id]->M->clear();
       return pool[id].get();
     } break;
     default: {
@@ -395,8 +417,8 @@ inline std::tuple<int, int, double, double> KSP_solve(
   timer.finish();
   const double tt  = timer.time();
   const double res = data->ksp->get_resids().back();
-  data->ksp.reset();  // free
-  if (cst_nsp) data->M->nsp.reset(); // release const nullspace filter
+  data->ksp.reset();                  // free
+  if (cst_nsp) data->M->nsp.reset();  // release const nullspace filter
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 }  // namespace hilucsi4m

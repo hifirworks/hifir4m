@@ -79,6 +79,15 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (decode_database_struct(prhs[1], id, is_mixed))
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway",
                       "failed to decode the database structure");
+  // clear database
+  if (action == hilucsi4m::HILUCSI4M_CLEAR) {
+    if (!is_mixed)
+      hilucsi4m::database<false>(hilucsi4m::HILUCSI4M_CLEAR, id);
+    else
+      hilucsi4m::database<true>(hilucsi4m::HILUCSI4M_CLEAR, id);
+    return;
+  }  // end clearing
+
   // destroy
   if (action == hilucsi4m::HILUCSI4M_DESTROY) {
     if (!is_mixed)
