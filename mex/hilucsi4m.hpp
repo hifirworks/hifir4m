@@ -49,17 +49,18 @@ class OperatorUpdateSolver
 
   explicit OperatorUpdateSolver(const M_type &M) : _base(M), _v(M.nrows()) {}
 
+  using _base::solve;
+
   template <class Matrix>
-  inline bool solve(const Matrix &A, const array_type &b, const size_type,
+  inline void solve(const Matrix &A, const array_type &b, const size_type,
                     array_type &x0) const {
     // step 1: (2*I-A*inv(M)) * b
-    _base::solve(A, b, size_type(0), _v);
+    _base::solve(b, _v);
     hilucsi::mt::mv_nt(A, _v, x0);
     const size_type n = _v.size();
     for (size_type i(0); i < n; ++i) _v[i] = 2.0 * b[i] - x0[i];
     // step 2: inv(M)*v
-    _base::solve(A, _v, size_type(0), x0);
-    return false;
+    _base::solve(_v, x0);
   }
 
  protected:

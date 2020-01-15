@@ -4,9 +4,11 @@ function build_hilucsi4m(force)
 if nargin < 1; force = false; end
 mods = {'mex/hilucsi4m_mex', ...
     'matlab/private/hilucsi4m_ijv2crs'};
+%{
 if system('git submodule update --init hilucsi')
     fprintf(2, 'Warning! Failed to update submodule HILUCSI\n');
 end
+%}
 v = version('-release');
 r2017 = '-R2017b';
 if str2num(v(1:end-1)) < 2018; r2017 = ''; end
