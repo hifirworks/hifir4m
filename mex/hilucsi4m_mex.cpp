@@ -182,17 +182,36 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
           id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
           plhs[0], update);
   } else {
-    int cst_nsp[2];
-    cst_nsp[0] = *mxGetPr(prhs[12]);
-    cst_nsp[1] = *(mxGetPr(prhs[12]) + 1);
+    const mxArray* fhdl  = nullptr;  // function handler
+    const char*    feval = "feval";  // feval is used to call user func handler
+    char*          fname = nullptr;
+    int            cst_nsp[2];
+    const int*     nsp_ptr = nullptr;
+    if (mxIsClass(prhs[12], "function_handle")) {
+      // function handle
+      fhdl  = prhs[12];
+      fname = (char*)feval;
+    } else if (mxIsChar(prhs[12])) {
+      // function script
+      fname = mxArrayToString(prhs[12]);
+    } else {
+      if (mxGetM(prhs[12]) * mxGetN(prhs[12]) < 2)
+        mexErrMsgIdAndTxt(
+            "hilucsi4m:mexgateway:ksp_solve",
+            "constant null space mode requires two input specifying the range");
+      cst_nsp[0] = *mxGetPr(prhs[12]);
+      cst_nsp[1] = *(mxGetPr(prhs[12]) + 1);
+      nsp_ptr    = cst_nsp;
+    }
     if (is_mixed)
       std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
           id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0], update, cst_nsp);
+          plhs[0], update, nsp_ptr, fname, fhdl);
     else
       std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
           id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0], update, cst_nsp);
+          plhs[0], update, nsp_ptr, fname, fhdl);
+    if (fname && fname != feval) mxFree(fname);
   }
   if (nlhs < 2) {
     // handle flag
