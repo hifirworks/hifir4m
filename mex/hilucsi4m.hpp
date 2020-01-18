@@ -67,6 +67,62 @@ class OperatorUpdateSolver
   mutable array_type _v;  ///< workspace
 };
 
+class MexNspFilter : public hilucsi::NspFilter {
+ public:
+  using base = hilucsi::NspFilter;
+
+  explicit MexNspFilter(const std::size_t start = 0,
+                        const std::size_t end   = static_cast<std::size_t>(-1))
+      : base(start, end) {}
+
+  virtual ~MexNspFilter() {
+    if (x_in) mxDestroyArray(x_in);
+  }
+
+  std::string      f_name   = "#unknown#";  ///< function to evaluate
+  mxArray *        f_handle = nullptr;      ///< function handle
+  mutable mxArray *x_in     = nullptr;      ///< input "wrapper" of x
+
+  virtual void user_filter(void *x, const std::size_t n,
+                           const char dtype) const override {
+    if (dtype != 'd')
+      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:badDtype",
+                        "only double precision is supported");
+    if (f_name == "#unknown#")
+      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:unknownFunc",
+                        "unset function name");
+    if (f_name == "feval" && !f_handle)
+      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:missingHandler",
+                        "missing function handle");
+    if (!x_in) x_in = mxCreateDoubleMatrix(n, 1, mxREAL);
+    if (n != mxGetM(x_in))
+      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:badShape", "unmatched sizes");
+    // copy x to buffer
+    std::copy_n(reinterpret_cast<const double *>(x), n, mxGetPr(x_in));
+    mxArray *    rhs[2];
+    const mwSize nrhs = f_handle ? 2 : 1;
+    if (f_handle) {
+      // if using function handle, then the first one is the function handle,
+      // while the input argument is given following it
+      rhs[0] = f_handle;
+      rhs[1] = x_in;
+    } else
+      rhs[0] = x_in;
+    // NOTE: We have to create a new array each time to ensure the safety of
+    // MATLAB runtime system.
+    // TODO: can we avoid this?
+    mxArray *lhs;
+    // call MATLAB directly
+    mexCallMATLAB(1, &lhs, nrhs, rhs, f_name.c_str());
+    // copy back to data to HILUCSI
+    std::copy_n(mxGetPr(lhs), n, reinterpret_cast<double *>(x));
+    mxDestroyArray(lhs);  // free the array
+  }
+
+  // function to enable user override function option
+  inline void enable_or() { _type = USER_OR; }
+};
+
 /**
  * @brief Database structure
  *
@@ -358,7 +414,8 @@ inline std::tuple<int, int, double, double> KSP_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs,
-    const bool update = false, const int *cst_nsp = nullptr) {
+    const bool update = false, const int *cst_nsp = nullptr,
+    const char *fname = nullptr, const mxArray *fhdl = nullptr) {
   using ksp_t = typename HILUCSI4M_Database<IsMixed>::solver_t;
 
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
@@ -396,7 +453,24 @@ inline std::tuple<int, int, double, double> KSP_solve(
 
   // enable const null space filter
   if (cst_nsp)
-    data->M->nsp.reset(new hilucsi::NspFilter(cst_nsp[0] - 1, cst_nsp[1]));
+    data->M->nsp.reset(new MexNspFilter(cst_nsp[0] - 1, cst_nsp[1]));
+  else if (fname) {
+    if (verbose)
+      hilucsi_info(
+          "setting up user (right) null space filter with\n"
+          "\tcallback name: %s\n"
+          "\tfunction handle: %s",
+          fname, (fhdl ? "yes" : "no"));
+    // setup user filter
+    data->M->nsp.reset(new MexNspFilter());
+    MexNspFilter *mex_nsp = dynamic_cast<MexNspFilter *>(data->M->nsp.get());
+    if (!mex_nsp)
+      mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badNsp",
+                        "failed to dynamic_cast nullspace filter");
+    mex_nsp->f_name = fname;
+    if (fhdl) mex_nsp->f_handle = const_cast<mxArray *>(fhdl);
+    mex_nsp->enable_or();
+  }
 
   hilucsi::DefaultTimer timer;
   int                   flag;
@@ -418,8 +492,8 @@ inline std::tuple<int, int, double, double> KSP_solve(
   timer.finish();
   const double tt  = timer.time();
   const double res = data->ksp->get_resids().back();
-  data->ksp.reset();                  // free
-  if (cst_nsp) data->M->nsp.reset();  // release const nullspace filter
+  data->ksp.reset();                       // free
+  if (data->M->nsp) data->M->nsp.reset();  // release const nullspace filter
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 }  // namespace hilucsi4m
