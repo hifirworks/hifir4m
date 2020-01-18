@@ -83,10 +83,16 @@ gmres_pars = [30 1e-6 500]; % restart,rtol,maxit
 x0 = [];
 verbose = true;
 update = false;
-for i = 1:min(3, length(varargin)); gmres_pars(i) = varargin{i}; end
+for i = 1:min(3, length(varargin))
+    if ~isempty(varargin{i}); gmres_pars(i) = varargin{i}; end
+end
 if length(varargin) > 3; x0 = varargin{4}; end
-if length(varargin) > 4; verbose = logical(varargin{5}); end
-if length(varargin) > 5; update = logical(varargin{6}); end
+if length(varargin) > 4
+    if ~isempty(varargin{5}); verbose = logical(varargin{5}); end
+end
+if length(varargin) > 5
+    if ~isempty(varargin{6}); update = logical(varargin{6}); end
+end
 if isempty(x0); x0 = zeros(size(b)); end
 % Convert to zero-based CRS
 if issparse(A); A = hilucsi4m_sp2crs(A); end
