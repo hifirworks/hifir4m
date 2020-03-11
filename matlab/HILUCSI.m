@@ -59,6 +59,13 @@ classdef HILUCSI
             [varargout{1:nargout}] = hilucsi4m_fgmres(obj.dbase, A, b, ...
                 varargin{:});
         end
+        function varargout = gmres_null(obj, A, b, varargin)
+            %GMRES_NULL - Solving for left null space
+            %
+            % See Also: HILUCSI4M_GMRES_NULL
+            [varargout{1:nargout}] = hilucsi4m_gmres_null(obj.dbase, A, b, ...
+                varargin{:});
+        end
         function clear(obj)
             %CLEAR - Clear the internal storage
             hilucsi4m_clear(obj.dbase);
