@@ -21,9 +21,10 @@
 
 namespace hilucsi4m {
 enum {
-  HILUCSI4M_FACTORIZE = HILUCSI4M_DESTROY + 1,    ///< Factorize
-  HILUCSI4M_M_SOLVE   = HILUCSI4M_FACTORIZE + 1,  ///< preconditioner solve
-  HILUCSI4M_KSP_SOLVE = HILUCSI4M_M_SOLVE + 1,    ///< KSP solve
+  HILUCSI4M_FACTORIZE = HILUCSI4M_DESTROY + 1,   ///< Factorize
+  HILUCSI4M_M_SOLVE = HILUCSI4M_FACTORIZE + 1,   ///< preconditioner solve
+  HILUCSI4M_KSP_SOLVE = HILUCSI4M_M_SOLVE + 1,   ///< KSP solve
+  HILUCSI4M_KSP_NULL = HILUCSI4M_KSP_SOLVE + 1,  ///< KSP for left null
 };
 }
 
@@ -50,13 +51,13 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                         "must be at least one output");
     // determine if use mixed precision
     const int is_mixed = nrhs < 2 ? 0 : (int)mxGetScalar(prhs[1]);
-    int       id;
+    int id;
     if (!is_mixed)
       hilucsi4m::database<false>(hilucsi4m::HILUCSI4M_CREATE, id);
     else
       hilucsi4m::database<true>(hilucsi4m::HILUCSI4M_CREATE, id);
     // create structure
-    plhs[0]    = mxCreateStructMatrix(1, 1, 2, fnames);
+    plhs[0] = mxCreateStructMatrix(1, 1, 2, fnames);
     auto id_mx = mxCreateNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
     *(int*)mxGetData(id_mx) = id;
     mxSetFieldByNumber(plhs[0], 0, 0, id_mx);
@@ -74,7 +75,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (!mxIsStruct(prhs[1]))
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway",
                       "the database token must be structure");
-  int  id;
+  int id;
   bool is_mixed;
   if (decode_database_struct(prhs[1], id, is_mixed))
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway",
@@ -140,7 +141,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nlhs < 1)
       mexErrMsgIdAndTxt("hilucsi4m:mexgateway:m_solve",
                         "Accessing inv(M) requires 1 output");
-    plhs[0]         = mxDuplicateArray(prhs[2]);
+    plhs[0] = mxDuplicateArray(prhs[2]);
     const double tt = is_mixed
                           ? hilucsi4m::M_solve<true>(id, prhs[2], plhs[0])
                           : hilucsi4m::M_solve<false>(id, prhs[0], plhs[0]);
@@ -148,10 +149,92 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     return;
   }  // end M solve
 
-  if (action != hilucsi4m::HILUCSI4M_KSP_SOLVE)
+  if (action == hilucsi4m::HILUCSI4M_KSP_SOLVE) {
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
 
-  // KSP solver
+    // KSP solver
+    // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose)
+    if (nrhs < 6)
+      mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                        "KSP solver requires at least 6 inputs");
+    if (nlhs < 1)
+      mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                        "KSP solver requires at least 1 output(s)");
+    const int restart = nrhs < 7 ? 30 : (int)mxGetScalar(prhs[6]);
+    const double rtol = nrhs < 8 ? 1e-6 : mxGetScalar(prhs[7]);
+    const int maxit = nrhs < 9 ? 500 : (int)mxGetScalar(prhs[8]);
+    if (nrhs > 9) {
+      // has initial guess
+      plhs[0] = mxDuplicateArray(prhs[9]);
+    } else {
+      plhs[0] = mxCreateDoubleMatrix(mxGetM(prhs[5]), 1, mxREAL);
+    }
+    const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
+    const bool update = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
+    int flag, iters;
+    double res, tt;
+    if (nrhs < 13) {
+      if (is_mixed)
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0], update);
+      else
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0], update);
+    } else {
+      const mxArray* fhdl = nullptr;  // function handler
+      const char* feval = "feval";    // feval is used to call user func handler
+      char* fname = nullptr;
+      int cst_nsp[2];
+      const int* nsp_ptr = nullptr;
+      if (mxIsClass(prhs[12], "function_handle")) {
+        // function handle
+        fhdl = prhs[12];
+        fname = (char*)feval;
+      } else if (mxIsChar(prhs[12])) {
+        // function script
+        fname = mxArrayToString(prhs[12]);
+      } else {
+        if (mxGetM(prhs[12]) * mxGetN(prhs[12]) < 2)
+          mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                            "constant null space mode requires two input "
+                            "specifying the range");
+        cst_nsp[0] = *mxGetPr(prhs[12]);
+        cst_nsp[1] = *(mxGetPr(prhs[12]) + 1);
+        nsp_ptr = cst_nsp;
+      }
+      if (is_mixed)
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0], update, nsp_ptr, fname, fhdl);
+      else
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0], update, nsp_ptr, fname, fhdl);
+      if (fname && fname != feval) mxFree(fname);
+    }
+    if (nlhs < 2) {
+      // handle flag
+      if (flag) {
+        const char* msg = hilucsi::ksp::flag_repr("FGMRES", flag).c_str();
+        mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                          "FGMRES failed with flag %d and message:\n%s", flag,
+                          msg);
+      }
+    } else {
+      plhs[1] = mxCreateDoubleScalar((double)flag);
+      if (nlhs > 2) plhs[2] = mxCreateDoubleScalar((double)iters);
+      if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(res);
+      if (nlhs > 4) plhs[4] = mxCreateDoubleScalar(tt);
+    }
+    return;
+  }
+
+  if (action != hilucsi4m::HILUCSI4M_KSP_NULL)
+    mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
+
+  // KSP null solver
   // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose)
   if (nrhs < 6)
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
@@ -159,9 +242,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nlhs < 1)
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
                       "KSP solver requires at least 1 output(s)");
-  const int    restart = nrhs < 7 ? 30 : (int)mxGetScalar(prhs[6]);
-  const double rtol    = nrhs < 8 ? 1e-6 : mxGetScalar(prhs[7]);
-  const int    maxit   = nrhs < 9 ? 500 : (int)mxGetScalar(prhs[8]);
+  const int restart = nrhs < 7 ? 30 : (int)mxGetScalar(prhs[6]);
+  const double rtol = nrhs < 8 ? 1e-6 : mxGetScalar(prhs[7]);
+  const int maxit = nrhs < 9 ? 500 : (int)mxGetScalar(prhs[8]);
   if (nrhs > 9) {
     // has initial guess
     plhs[0] = mxDuplicateArray(prhs[9]);
@@ -169,56 +252,22 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxCreateDoubleMatrix(mxGetM(prhs[5]), 1, mxREAL);
   }
   const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
-  const bool update  = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
-  int        flag, iters;
-  double     res, tt;
-  if (nrhs < 13) {
-    if (is_mixed)
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0], update);
-    else
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0], update);
-  } else {
-    const mxArray* fhdl  = nullptr;  // function handler
-    const char*    feval = "feval";  // feval is used to call user func handler
-    char*          fname = nullptr;
-    int            cst_nsp[2];
-    const int*     nsp_ptr = nullptr;
-    if (mxIsClass(prhs[12], "function_handle")) {
-      // function handle
-      fhdl  = prhs[12];
-      fname = (char*)feval;
-    } else if (mxIsChar(prhs[12])) {
-      // function script
-      fname = mxArrayToString(prhs[12]);
-    } else {
-      if (mxGetM(prhs[12]) * mxGetN(prhs[12]) < 2)
-        mexErrMsgIdAndTxt(
-            "hilucsi4m:mexgateway:ksp_solve",
-            "constant null space mode requires two input specifying the range");
-      cst_nsp[0] = *mxGetPr(prhs[12]);
-      cst_nsp[1] = *(mxGetPr(prhs[12]) + 1);
-      nsp_ptr    = cst_nsp;
-    }
-    if (is_mixed)
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<true>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0], update, nsp_ptr, fname, fhdl);
-    else
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_solve<false>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0], update, nsp_ptr, fname, fhdl);
-    if (fname && fname != feval) mxFree(fname);
-  }
+  int flag, iters;
+  double res, tt;
+  if (is_mixed)
+    std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true>(
+        id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+        plhs[0]);
+  else
+    std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false>(
+        id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+        plhs[0]);
   if (nlhs < 2) {
     // handle flag
-    if (flag) {
-      const char* msg = hilucsi::ksp::flag_repr("FGMRES", flag).c_str();
+    if (flag != hilucsi::ksp::STAGNATED) {
+      const char* msg = hilucsi::ksp::flag_repr("GMRES_Null", flag).c_str();
       mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
-                        "FGMRES failed with flag %d and message:\n%s", flag,
+                        "GMRES_Null failed with flag %d and message:\n%s", flag,
                         msg);
     }
   } else {
@@ -237,7 +286,7 @@ static bool decode_database_struct(const mxArray* rhs, int& id,
   auto is_mixed_mx = mxGetField(rhs, 0, fnames[1]);
   if (!is_mixed_mx) return true;
   if (!mxIsLogical(is_mixed_mx)) return true;
-  id       = mxGetScalar(id_mx);
+  id = mxGetScalar(id_mx);
   is_mixed = *(mxLogical*)mxGetData(is_mixed_mx);
   return false;
 }
@@ -246,12 +295,12 @@ template <bool IsMixed>
 static void get_fac_info(int id, mwSize& nnz, mwSize& nnz_ef, mwSize& deferrals,
                          mwSize& dy_deferrals, mwSize& drops,
                          mwSize& space_drops, mwSize& lvls) {
-  auto data    = hilucsi4m::database<IsMixed>(hilucsi4m::HILUCSI4M_GET, id);
-  nnz          = data->M->nnz();
-  nnz_ef       = data->M->nnz_EF();
-  deferrals    = data->M->stats(0);
+  auto data = hilucsi4m::database<IsMixed>(hilucsi4m::HILUCSI4M_GET, id);
+  nnz = data->M->nnz();
+  nnz_ef = data->M->nnz_EF();
+  deferrals = data->M->stats(0);
   dy_deferrals = data->M->stats(1);
-  drops        = data->M->stats(4);
-  space_drops  = data->M->stats(5);
-  lvls         = data->M->levels();
+  drops = data->M->stats(4);
+  space_drops = data->M->stats(5);
+  lvls = data->M->levels();
 }

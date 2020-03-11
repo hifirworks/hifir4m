@@ -42,8 +42,8 @@ class OperatorUpdateSolver
 
  public:
   using array_type = typename _base::array_type;
-  using M_type     = typename _base::M_type;
-  using size_type  = typename _base::size_type;
+  using M_type = typename _base::M_type;
+  using size_type = typename _base::size_type;
 
   OperatorUpdateSolver() = delete;
 
@@ -72,16 +72,16 @@ class MexNspFilter : public hilucsi::NspFilter {
   using base = hilucsi::NspFilter;
 
   explicit MexNspFilter(const std::size_t start = 0,
-                        const std::size_t end   = static_cast<std::size_t>(-1))
+                        const std::size_t end = static_cast<std::size_t>(-1))
       : base(start, end) {}
 
   virtual ~MexNspFilter() {
     if (x_in) mxDestroyArray(x_in);
   }
 
-  std::string      f_name   = "#unknown#";  ///< function to evaluate
-  mxArray *        f_handle = nullptr;      ///< function handle
-  mutable mxArray *x_in     = nullptr;      ///< input "wrapper" of x
+  std::string f_name = "#unknown#";  ///< function to evaluate
+  mxArray *f_handle = nullptr;       ///< function handle
+  mutable mxArray *x_in = nullptr;   ///< input "wrapper" of x
 
   virtual void user_filter(void *x, const std::size_t n,
                            const char dtype) const override {
@@ -99,7 +99,7 @@ class MexNspFilter : public hilucsi::NspFilter {
       mexErrMsgIdAndTxt("hilucsi4m:nspFilter:badShape", "unmatched sizes");
     // copy x to buffer
     std::copy_n(reinterpret_cast<const double *>(x), n, mxGetPr(x_in));
-    mxArray *    rhs[2];
+    mxArray *rhs[2];
     const mwSize nrhs = f_handle ? 2 : 1;
     if (f_handle) {
       // if using function handle, then the first one is the function handle,
@@ -140,14 +140,16 @@ struct HILUCSI4M_Database {
   ///< preconditioner type
   using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t, _value_type>;
   ///< KSP factory type
-  using solver_t          = typename ksp_factory_t::fgmres;  ///< FMGRES type
+  using solver_t = typename ksp_factory_t::fgmres;           ///< FMGRES type
+  using null_solver_t = typename ksp_factory_t::gmres_null;  ///< left null
   using update_operator_t = OperatorUpdateSolver<prec_t, _value_type>;
   ///< updated operator type
   static constexpr bool IS_MIXED = IsMixed;  ///< mixed flag
 
   // attributes
-  std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
-  std::shared_ptr<solver_t> ksp;  ///< KSP solver
+  std::shared_ptr<prec_t> M;                ///< preconditioner attribute
+  std::shared_ptr<solver_t> ksp;            ///< KSP solver
+  std::shared_ptr<null_solver_t> ksp_null;  ///< KSP null solver
 };
 
 // // structure of preconditioner with mixed precision
@@ -165,9 +167,9 @@ struct HILUCSI4M_Database {
 // };
 
 enum {
-  HILUCSI4M_CREATE  = 0,  ///< create database
-  HILUCSI4M_GET     = 1,  ///< get database
-  HILUCSI4M_CLEAR   = 2,  ///< clear database
+  HILUCSI4M_CREATE = 0,   ///< create database
+  HILUCSI4M_GET = 1,      ///< get database
+  HILUCSI4M_CLEAR = 2,    ///< clear database
   HILUCSI4M_DESTROY = 3,  ///< destroy database
 };
 
@@ -244,24 +246,24 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
   auto get_field = [&](const int field) -> double {
     return mxGetScalar(mxGetFieldByNumber(rhs, 0, field));
   };
-  opt.tau_L         = get_field(0);
-  opt.tau_U         = get_field(1);
-  opt.tau_d         = get_field(2);
-  opt.tau_kappa     = get_field(3);
-  opt.alpha_L       = get_field(4);
-  opt.alpha_U       = get_field(5);
-  opt.rho           = get_field(6);
-  opt.c_d           = get_field(7);
-  opt.c_h           = get_field(8);
-  opt.N             = get_field(9);
-  opt.verbose       = get_field(10);
-  opt.rf_par        = get_field(11);
-  opt.reorder       = get_field(12);
-  opt.saddle        = get_field(13);
-  opt.check         = get_field(14);
-  opt.pre_scale     = get_field(15);
+  opt.tau_L = get_field(0);
+  opt.tau_U = get_field(1);
+  opt.tau_d = get_field(2);
+  opt.tau_kappa = get_field(3);
+  opt.alpha_L = get_field(4);
+  opt.alpha_U = get_field(5);
+  opt.rho = get_field(6);
+  opt.c_d = get_field(7);
+  opt.c_h = get_field(8);
+  opt.N = get_field(9);
+  opt.verbose = get_field(10);
+  opt.rf_par = get_field(11);
+  opt.reorder = get_field(12);
+  opt.saddle = get_field(13);
+  opt.check = get_field(14);
+  opt.pre_scale = get_field(15);
   opt.symm_pre_lvls = get_field(16);
-  opt.threads       = get_field(17);
+  opt.threads = get_field(17);
   opt.fat_schur_1st = get_field(18);
   return opt;
 }
@@ -290,8 +292,8 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
   if (!mxIsInt32(rowptr) || !mxIsInt32(colind))
     mexErrMsgIdAndTxt((prefix + ":badIntDtype").c_str(),
                       "rowptr and colind must be int32");
-  const auto n    = mxGetM(rowptr) - 1;
-  int *      rptr = (int *)mxGetData(rowptr), *cptr = (int *)mxGetData(colind);
+  const auto n = mxGetM(rowptr) - 1;
+  int *rptr = (int *)mxGetData(rowptr), *cptr = (int *)mxGetData(colind);
   const auto nnz = rptr[n] - rptr[0];
   if (mxGetM(colind) < (mwSize)nnz || mxGetM(val) < (mwSize)nnz)
     mexErrMsgIdAndTxt((prefix + ":badLength").c_str(), "bad nnz length %d",
@@ -304,7 +306,7 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
   *rptr_ = rptr;
   *cptr_ = cptr;
   *vptr_ = (double *)mxGetPr(val);
-  *n_    = n;
+  *n_ = n;
 }
 
 // factorization
@@ -327,8 +329,8 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
 
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
 
-  mwSize  n;
-  int *   rptr, *cptr;
+  mwSize n;
+  int *rptr, *cptr;
   double *vptr;
   convert_crs_mx2pointer(std::string("hilucsi4m:factorize"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
@@ -426,8 +428,8 @@ inline std::tuple<int, int, double, double> KSP_solve(
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
                       "rhs/lhs must be column vector");
   // get matrix
-  mwSize  n;
-  int *   rptr, *cptr;
+  mwSize n;
+  int *rptr, *cptr;
   double *vptr;
   convert_crs_mx2pointer(std::string("hilucsi4m:KSP_solve"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
@@ -473,8 +475,8 @@ inline std::tuple<int, int, double, double> KSP_solve(
   }
 
   hilucsi::DefaultTimer timer;
-  int                   flag;
-  std::size_t           iters;
+  int flag;
+  std::size_t iters;
   timer.start();
   try {
     if (!update)
@@ -490,10 +492,86 @@ inline std::tuple<int, int, double, double> KSP_solve(
                       "KSP_solve failed with message:\n%s", e.what());
   }
   timer.finish();
-  const double tt  = timer.time();
+  const double tt = timer.time();
   const double res = data->ksp->get_resids().back();
   data->ksp.reset();                       // free
   if (data->M->nsp) data->M->nsp.reset();  // release const nullspace filter
+  return std::make_tuple(flag, (int)iters, res, tt);
+}
+
+/**
+ * @brief Solve left null space with GMRES
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] id ID tag of the database
+ * @param[in] restart Restart of GMRES (30)
+ * @param[in] max_iter Maximum iteration allowed (500)
+ * @param[in] rtol Relative tolerance for residual convergence (1e-6)
+ * @param[in] verbose Verbose flag (true)
+ * @param[in] rowptr rowptr row pointer mex array (int32)
+ * @param[in] colind colind column index mex array (int32)
+ * @param[in] val value mex array (double)
+ * @param[in] rhs Right-hand side b vector
+ * @param[in,out] lhs Left-hand side solution and initial guess vector
+ * @return A tuple of flag, iterations, final residual and overhead-free
+ *          wall-clock time are returned in this routine.
+ */
+template <bool IsMixed>
+inline std::tuple<int, int, double, double> KSP_null_solve(
+    int id, const int restart, const int max_iter, const double rtol,
+    const bool verbose, const mxArray *rowptr, const mxArray *colind,
+    const mxArray *val, const mxArray *rhs, mxArray *lhs) {
+  using ksp_t = typename HILUCSI4M_Database<IsMixed>::null_solver_t;
+
+  auto data = database<IsMixed>(HILUCSI4M_GET, id);
+  if (!data->M)
+    mexErrMsgIdAndTxt("hilucsi4m:KSP_null_solve:emptyM",
+                      "M has not yet factorized");
+
+  if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
+    mexErrMsgIdAndTxt("hilucsi4m:KSP_null_solve:badRhsSize",
+                      "rhs/lhs must be column vector");
+  // get matrix
+  mwSize n;
+  int *rptr, *cptr;
+  double *vptr;
+  convert_crs_mx2pointer(std::string("hilucsi4m:KSP_solve"), rowptr, colind,
+                         val, &rptr, &cptr, &vptr, &n);
+
+  if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows() ||
+      data->M->nrows() != n)
+    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
+                      "rhs size does not agree with lhs, M or A");
+
+  data->ksp_null.reset(new ksp_t(data->M));
+  auto &ksp = *data->ksp_null;
+  ksp.set_M(data->M);  // setup preconditioner
+
+  // create csr wrapper from HILUCSI
+  hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
+  // arrays
+  using array_t = hilucsi::Array<double>;
+  array_t b(n, mxGetPr(rhs), true), x(n, mxGetPr(lhs), true);
+
+  if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
+  if (max_iter > 0) ksp.set_maxit(max_iter);
+  if (rtol > 0.0) ksp.set_rtol(rtol);
+
+  hilucsi::DefaultTimer timer;
+  int flag;
+  std::size_t iters;
+  timer.start();
+  try {
+    std::tie(flag, iters) = ksp.solve(A, b, x, hilucsi::ksp::TRADITION,
+                                      true /* always with guess */, verbose);
+  } catch (const std::exception &e) {
+    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
+                      "KSP_solve failed with message:\n%s", e.what());
+  }
+  timer.finish();
+  const double tt = timer.time();
+  const double res = data->ksp_null->get_resids().back();
+  data->ksp_null.reset();  // free
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 }  // namespace hilucsi4m
