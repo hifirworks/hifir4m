@@ -150,7 +150,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   }  // end M solve
 
   if (action == hilucsi4m::HILUCSI4M_KSP_SOLVE) {
-    mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
+    // mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
 
     // KSP solver
     // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose)
