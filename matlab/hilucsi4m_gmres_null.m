@@ -18,13 +18,16 @@ function varargout = hilucsi4m_gmres_null(dbase, A, b, varargin)
 gmres_pars = [30 1e-13 500]; % restart,rtol,maxit
 x0 = [];
 verbose = true;
-update = false;
+hiprec = false;
 for i = 1:min(3, length(varargin))
     if ~isempty(varargin{i}); gmres_pars(i) = varargin{i}; end
 end
 if length(varargin) > 3; x0 = varargin{4}; end
 if length(varargin) > 4
     if ~isempty(varargin{5}); verbose = logical(varargin{5}); end
+end
+if length(varargin) > 5
+    if ~isempty(varargin{6}); hiprec = logical(varargin{6}); end
 end
 if isempty(x0); x0 = zeros(size(b)); end
 % Convert to zero-based CRS
@@ -33,7 +36,7 @@ assert(isa(A.row_ptr, 'int32'));
 assert(isa(A.col_ind, 'int32'));
 [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_NULL, dbase, ...
     A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
-    gmres_pars(3), x0, verbose);
+    gmres_pars(3), x0, verbose, hiprec);
 
 %-------------------------- END MAIN CODE -------------------------------%
 end

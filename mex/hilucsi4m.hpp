@@ -142,14 +142,16 @@ struct HILUCSI4M_Database {
   ///< KSP factory type
   using solver_t = typename ksp_factory_t::fgmres;           ///< FMGRES type
   using null_solver_t = typename ksp_factory_t::gmres_null;  ///< left null
+  using null_hi_solver_t = typename ksp_factory_t::gmres_null_hi;  ///< null hi
   using update_operator_t = OperatorUpdateSolver<prec_t, _value_type>;
   ///< updated operator type
   static constexpr bool IS_MIXED = IsMixed;  ///< mixed flag
 
   // attributes
-  std::shared_ptr<prec_t> M;                ///< preconditioner attribute
-  std::shared_ptr<solver_t> ksp;            ///< KSP solver
-  std::shared_ptr<null_solver_t> ksp_null;  ///< KSP null solver
+  std::shared_ptr<prec_t> M;                      ///< preconditioner attribute
+  std::shared_ptr<solver_t> ksp;                  ///< KSP solver
+  std::shared_ptr<null_solver_t> ksp_null;        ///< KSP null solver
+  std::shared_ptr<null_hi_solver_t> ksp_null_hi;  ///< KSP null solver hi
 };
 
 // // structure of preconditioner with mixed precision
@@ -503,6 +505,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
  * @brief Solve left null space with GMRES
  *
  * @tparam IsMixed Wether or not the database uses mixed precision
+ * @tparam UseHi using hi-precision kernels
  * @param[in] id ID tag of the database
  * @param[in] restart Restart of GMRES (30)
  * @param[in] max_iter Maximum iteration allowed (500)
@@ -516,12 +519,13 @@ inline std::tuple<int, int, double, double> KSP_solve(
  * @return A tuple of flag, iterations, final residual and overhead-free
  *          wall-clock time are returned in this routine.
  */
-template <bool IsMixed>
+template <bool IsMixed, bool UseHi>
 inline std::tuple<int, int, double, double> KSP_null_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs) {
   using ksp_t = typename HILUCSI4M_Database<IsMixed>::null_solver_t;
+  using ksp_hi_t = typename HILUCSI4M_Database<IsMixed>::null_hi_solver_t;
 
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
   if (!data->M)
@@ -543,35 +547,50 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
                       "rhs size does not agree with lhs, M or A");
 
-  data->ksp_null.reset(new ksp_t(data->M));
-  auto &ksp = *data->ksp_null;
-  ksp.set_M(data->M);  // setup preconditioner
-
   // create csr wrapper from HILUCSI
   hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
   // arrays
   using array_t = hilucsi::Array<double>;
   array_t b(n, mxGetPr(rhs), true), x(n, mxGetPr(lhs), true);
 
-  if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
-  if (max_iter > 0) ksp.set_maxit(max_iter);
-  if (rtol > 0.0) ksp.set_rtol(rtol);
+  if (!UseHi) {
+    data->ksp_null.reset(new ksp_t(data->M));
+    auto &ksp = *data->ksp_null;
+    ksp.set_M(data->M);  // setup preconditioner
+    if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
+    if (max_iter > 0) ksp.set_maxit(max_iter);
+    if (rtol > 0.0) ksp.set_rtol(rtol);
+  } else {
+    data->ksp_null_hi.reset(new ksp_hi_t(data->M));
+    auto &ksp = *data->ksp_null_hi;
+    ksp.set_M(data->M);  // setup preconditioner
+    if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
+    if (max_iter > 0) ksp.set_maxit(max_iter);
+    if (rtol > 0.0) ksp.set_rtol(rtol);
+  }
 
   hilucsi::DefaultTimer timer;
   int flag;
   std::size_t iters;
   timer.start();
   try {
-    std::tie(flag, iters) = ksp.solve(A, b, x, hilucsi::ksp::TRADITION,
-                                      true /* always with guess */, verbose);
+    if (!UseHi)
+      std::tie(flag, iters) =
+          data->ksp_null->solve(A, b, x, hilucsi::ksp::TRADITION,
+                                true /* always with guess */, verbose);
+    else
+      std::tie(flag, iters) =
+          data->ksp_null_hi->solve(A, b, x, hilucsi::ksp::TRADITION,
+                                   true /* always with guess */, verbose);
   } catch (const std::exception &e) {
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
                       "KSP_solve failed with message:\n%s", e.what());
   }
   timer.finish();
   const double tt = timer.time();
-  const double res = data->ksp_null->get_resids().back();
-  data->ksp_null.reset();  // free
+  const double res = !UseHi ? data->ksp_null->get_resids().back()
+                            : data->ksp_null_hi->get_resids().back();
+  !UseHi ? data->ksp_null.reset() : data->ksp_null_hi.reset();  // free
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 }  // namespace hilucsi4m

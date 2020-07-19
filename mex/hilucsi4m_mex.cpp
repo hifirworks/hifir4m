@@ -150,7 +150,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   }  // end M solve
 
   if (action == hilucsi4m::HILUCSI4M_KSP_SOLVE) {
-    // mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
+    // mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d",
+    // action);
 
     // KSP solver
     // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose)
@@ -235,7 +236,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
 
   // KSP null solver
-  // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose)
+  // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose,
+  // hiprec)
   if (nrhs < 6)
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
                       "KSP solver requires at least 6 inputs");
@@ -252,16 +254,28 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxCreateDoubleMatrix(mxGetM(prhs[5]), 1, mxREAL);
   }
   const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
+  const bool hiprec = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
   int flag, iters;
   double res, tt;
-  if (is_mixed)
-    std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true>(
-        id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-        plhs[0]);
-  else
-    std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false>(
-        id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-        plhs[0]);
+  if (is_mixed) {
+    if (hiprec)
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true, true>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0]);
+    else
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true, false>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0]);
+  } else {
+    if (hiprec)
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false, true>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0]);
+    else
+      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false, false>(
+          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
+          plhs[0]);
+  }
   if (nlhs < 2) {
     // handle flag
     if (flag != hilucsi::ksp::STAGNATED) {
