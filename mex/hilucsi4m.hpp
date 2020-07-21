@@ -381,7 +381,7 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
 
   using array_t = hilucsi::Array<double>;
   array_t b(data->M->nrows(), mxGetPr(rhs), true),
-      x(data->M->nrows(), mxGetPr(lhs));
+      x(data->M->nrows(), mxGetPr(lhs), true);
   hilucsi::DefaultTimer timer;
   timer.start();
   try {
