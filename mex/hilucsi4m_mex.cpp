@@ -144,7 +144,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxDuplicateArray(prhs[2]);
     const double tt = is_mixed
                           ? hilucsi4m::M_solve<true>(id, prhs[2], plhs[0])
-                          : hilucsi4m::M_solve<false>(id, prhs[0], plhs[0]);
+                          : hilucsi4m::M_solve<false>(id, prhs[2], plhs[0]);
     if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
     return;
   }  // end M solve
