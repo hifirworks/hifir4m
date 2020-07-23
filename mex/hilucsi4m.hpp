@@ -394,6 +394,63 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
   return timer.time();  // give M solve time to the user
 }
 
+// M solve with inner iteration
+/**
+ * @brief Factorize an HILUCSI instance
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] id ID tag of the database
+ * @param[in] rowptr row pointer mex array (int32)
+ * @param[in] colind column index mex array (int32)
+ * @param[in] val value mex array (double)
+ * @param[in] rhs right-hand side vector
+ * @param[in] N inner iteration steps
+ * @param[out] lhs left-hand side result
+ * @return overhead-free factorization wall-clock time
+ */
+template <bool IsMixed>
+inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
+                      const mxArray *val, const mxArray *rhs, const int N,
+                      mxArray *lhs) {
+  if (N < 2) return M_solve<IsMixed>(id, rhs, lhs);  // quick return
+
+  using data_t = HILUCSI4M_Database<IsMixed>;
+
+  auto data = database<IsMixed>(HILUCSI4M_GET, id);
+
+  if (!data->M)
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:emptyM",
+                      "M has not yet factorized");
+
+  if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:badRhsSize",
+                      "rhs/lhs must be column vector");
+  if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows())
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:badRhsSize",
+                      "rhs size does not agree with lhs or M");
+
+  mwSize n;
+  int *rptr, *cptr;
+  double *vptr;
+  convert_crs_mx2pointer(std::string("hilucsi4m:M_solve_inner"), rowptr, colind,
+                         val, &rptr, &cptr, &vptr, &n);
+
+  // create csr wrapper from HILUCSI
+  hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
+  using array_t = hilucsi::Array<double>;
+  array_t b(data->M->nrows(), mxGetPr(rhs), true),
+      x(data->M->nrows(), mxGetPr(lhs), true);
+  hilucsi::DefaultTimer timer;
+  try {
+    data->M->solve(A, b, N, x);  // call inner iteration kernel
+  } catch (const std::exception &e) {
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:failedSolve",
+                      "M_solve_inner failed with message:\n%s", e.what());
+  }
+  timer.finish();
+  return timer.time();  // give M solve time to the user
+}
+
 // KSP solve
 
 /**

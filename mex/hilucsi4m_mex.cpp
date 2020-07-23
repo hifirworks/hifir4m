@@ -133,26 +133,37 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 
   // M solve
   if (action == hilucsi4m::HILUCSI4M_M_SOLVE) {
-    // act, dbase, b, x
+    // act, dbase, b
     if (nrhs < 3)
       mexErrMsgIdAndTxt("hilucsi4m:mexgateway:m_solve",
-                        "Accessing inv(M) requires 4 inputs");
+                        "Accessing inv(M) requires 3 inputs");
     // do not use R2017b api for shared copy
     if (nlhs < 1)
       mexErrMsgIdAndTxt("hilucsi4m:mexgateway:m_solve",
                         "Accessing inv(M) requires 1 output");
-    plhs[0] = mxDuplicateArray(prhs[2]);
-    const double tt = is_mixed
-                          ? hilucsi4m::M_solve<true>(id, prhs[2], plhs[0])
-                          : hilucsi4m::M_solve<false>(id, prhs[2], plhs[0]);
+    double tt;
+    if (nrhs == 3) {
+      plhs[0] = mxDuplicateArray(prhs[2]);
+      tt = is_mixed ? hilucsi4m::M_solve<true>(id, prhs[2], plhs[0])
+                    : hilucsi4m::M_solve<false>(id, prhs[2], plhs[0]);
+    } else {
+      // inner iterations
+      // act, dbase, b, rowptr, colind, val, N
+      if (nrhs < 7)
+        mexErrMsgIdAndTxt("hilucsi4m:mexgateway:m_solve_inner",
+                          "Accessing inv(M) requires at least 7 inputs");
+      const int N = (int)mxGetScalar(prhs[6]);
+      plhs[0] = mxDuplicateArray(prhs[2]);
+      tt = is_mixed ? hilucsi4m::M_solve<true>(id, prhs[3], prhs[4], prhs[5],
+                                               prhs[2], N, plhs[0])
+                    : hilucsi4m::M_solve<false>(id, prhs[3], prhs[4], prhs[5],
+                                                prhs[2], N, plhs[0]);
+    }
     if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
     return;
   }  // end M solve
 
   if (action == hilucsi4m::HILUCSI4M_KSP_SOLVE) {
-    // mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d",
-    // action);
-
     // KSP solver
     // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose)
     if (nrhs < 6)
