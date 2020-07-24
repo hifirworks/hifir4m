@@ -39,6 +39,12 @@ classdef HILUCSI
             % See Also: IS_MIXED
             id_ = obj.dbase.id;
         end        
+        function flag = empty(obj)
+            %EMPTY - Check emptyness
+            %
+            % See Also: ID
+            flag = hilucsi4m_empty(obj.dbase);
+        end
         function varargout = factorize(obj, A, varargin)
             %FACTORIZE - Perform MLILU factorization
             %

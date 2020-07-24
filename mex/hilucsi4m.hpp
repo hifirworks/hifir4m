@@ -172,7 +172,8 @@ enum {
   HILUCSI4M_CREATE = 0,   ///< create database
   HILUCSI4M_GET = 1,      ///< get database
   HILUCSI4M_CLEAR = 2,    ///< clear database
-  HILUCSI4M_DESTROY = 3,  ///< destroy database
+  HILUCSI4M_CHECK = 3,    ///< check emptyness
+  HILUCSI4M_DESTROY = 4,  ///< destroy database
 };
 
 /**
@@ -212,7 +213,7 @@ inline HILUCSI4M_Database<IsMixed> *database(const int action, int &id) {
       if (!pool[id])
         mexErrMsgIdAndTxt("hilucsi4m:database:getDeadID",
                           "%d database has been destroyed", id);
-      pool[id]->M->clear();
+      if (pool[id]->M) pool[id]->M->clear();
       return pool[id].get();
     } break;
     default: {

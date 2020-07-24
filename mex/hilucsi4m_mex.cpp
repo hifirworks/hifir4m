@@ -89,6 +89,23 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     return;
   }  // end clearing
 
+  if (action == hilucsi4m::HILUCSI4M_CHECK) {
+    if (!is_mixed) {
+      auto* dbase = hilucsi4m::database<false>(hilucsi4m::HILUCSI4M_GET, id);
+      if (!dbase || !dbase->M)
+        plhs[0] = mxCreateLogicalScalar(1);
+      else
+        plhs[0] = mxCreateLogicalScalar((mxLogical)dbase->M->empty());
+    } else {
+      auto* dbase = hilucsi4m::database<true>(hilucsi4m::HILUCSI4M_GET, id);
+      if (!dbase || !dbase->M)
+        plhs[0] = mxCreateLogicalScalar(1);
+      else
+        plhs[0] = mxCreateLogicalScalar((mxLogical)dbase->M->empty());
+    }
+    return;
+  }
+
   // destroy
   if (action == hilucsi4m::HILUCSI4M_DESTROY) {
     if (!is_mixed)
