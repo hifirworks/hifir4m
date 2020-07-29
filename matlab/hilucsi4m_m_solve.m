@@ -30,7 +30,8 @@ function varargout = hilucsi4m_m_solve(dbase, varargin)
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
 if length(varargin) == 1
-    [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_M_SOLVE, dbase, b);
+    [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_M_SOLVE, dbase, ...
+        varargin{1});
 else
     assert(length(varargin) == 3, 'inputs must be A, b, and N');
     b = varargin{2};
