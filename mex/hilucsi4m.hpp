@@ -201,9 +201,7 @@ inline HILUCSI4M_Database<IsMixed> *database(const int action, int &id) {
       if (id < 0 || id >= (int)pool.size())
         mexErrMsgIdAndTxt("hilucsi4m:database:getInvalidID",
                           "%d is an invalid database ID", id);
-      if (!pool[id])
-        mexErrMsgIdAndTxt("hilucsi4m:database:getDeadID",
-                          "%d database has been destroyed", id);
+      if (!pool[id]) pool[id] = std::make_shared<data_t>();
       return pool[id].get();
     } break;
     case HILUCSI4M_CLEAR: {
@@ -350,6 +348,7 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
   try {
     data->M->factorize(A, 0, opts);
   } catch (const std::exception &e) {
+    data->M->clear();
     mexErrMsgIdAndTxt("hilucsi4m:factorize:failedFac",
                       "factorization failed with message:\n%s", e.what());
   }
@@ -652,6 +651,227 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
                             : data->ksp_null_hi->get_resids().back();
   !UseHi ? data->ksp_null.reset() : data->ksp_null_hi.reset();  // free
   return std::make_tuple(flag, (int)iters, res, tt);
+}
+
+/**
+ * @brief Extract the internal data from HILUCSI
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @param[in] id ID tag of the database
+ * @param[in] destroy Destroy internal data while exporting them?
+ * @param[out] hilu Multi-level ILU factorization
+ */
+template <bool IsMixed>
+inline void M_export(int id, const bool destroy, mxArray **hilu) {
+  using data_t = HILUCSI4M_Database<IsMixed>;
+  using crs_t = typename data_t::prec_t::crs_type;
+  using value_t = typename crs_t::value_type;
+
+  auto data = database<IsMixed>(HILUCSI4M_GET, id);
+  if (!data || !data->M || data->M->empty()) {
+    // empty multi-level M
+    *hilu = mxCreateCellMatrix(0, 0);
+    return;
+  }
+
+  if (!data->M->can_export()) {
+    mexWarnMsgIdAndTxt(
+        "hilucsi4m:M_export:cannot_export",
+        "Exporting data is not allowed. 1) compiled with sparse last level, or "
+        "2) using interval-based data stuctures for L and U");
+    *hilu = mxCreateCellMatrix(0, 0);
+    return;
+  }
+
+  // attributes in crs
+  static const char *crs_attrs[] = {"row_ptr", "col_ind", "val", "nrows",
+                                    "ncols"};
+
+  // attributes in a single level
+  static const char *prec_attrs[] = {"L_B",   "D_B",   "U_B",   "E",
+                                     "F",     "s_row", "s_col", "p",
+                                     "p_inv", "q",     "q_inv"};
+
+  // initialize cell array (hilu)
+  *hilu = mxCreateCellMatrix(data->M->levels(), 1);
+  int index(0);
+  for (auto iter = data->M->precs().begin(); iter != data->M->precs().end();
+       ++iter) {
+    typename crs_t::size_type m, n, nnz_L, nnz_U, nnz_E, nnz_F;
+    iter->inquire_sizes(m, n, nnz_L, nnz_U, nnz_E, nnz_F);
+    // allocate for L_B
+    auto *L_row_ptr =
+        mxCreateUninitNumericMatrix(m + 1, 1, mxINT32_CLASS, mxREAL);
+    auto *L_col_ind =
+        mxCreateUninitNumericMatrix(nnz_L, 1, mxINT32_CLASS, mxREAL);
+    auto *L_val = mxCreateUninitNumericMatrix(
+        nnz_L, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+    // allocate for D_B
+    auto *D_B = mxCreateUninitNumericMatrix(
+        m, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+    // allocate for U_B
+    auto *U_row_ptr =
+        mxCreateUninitNumericMatrix(m + 1, 1, mxINT32_CLASS, mxREAL);
+    auto *U_col_ind =
+        mxCreateUninitNumericMatrix(nnz_U, 1, mxINT32_CLASS, mxREAL);
+    auto *U_val = mxCreateUninitNumericMatrix(
+        nnz_U, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+    // allocate for E
+    auto *E_row_ptr =
+        mxCreateUninitNumericMatrix(n - m + 1, 1, mxINT32_CLASS, mxREAL);
+    auto *E_col_ind =
+        mxCreateUninitNumericMatrix(nnz_E, 1, mxINT32_CLASS, mxREAL);
+    auto *E_val = mxCreateUninitNumericMatrix(
+        nnz_E, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+    // allocate for F
+    auto *F_row_ptr =
+        mxCreateUninitNumericMatrix(m + 1, 1, mxINT32_CLASS, mxREAL);
+    auto *F_col_ind =
+        mxCreateUninitNumericMatrix(nnz_F, 1, mxINT32_CLASS, mxREAL);
+    auto *F_val = mxCreateUninitNumericMatrix(
+        nnz_F, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+    // row/column scaling
+    auto *s_row = mxCreateUninitNumericMatrix(
+             n, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL),
+         *s_col = mxCreateUninitNumericMatrix(
+             n, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+    // row/column permutation arrays
+    auto *p = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL),
+         *p_inv = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL),
+         *q = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL),
+         *q_inv = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL);
+
+    iter->template export_sparse_data<crs_t>(
+        (int *)mxGetData(L_row_ptr), (int *)mxGetData(L_col_ind),
+        (value_t *)mxGetData(L_val), (value_t *)mxGetData(D_B),
+        (int *)mxGetData(U_row_ptr), (int *)mxGetData(U_col_ind),
+        (value_t *)mxGetData(U_val), (int *)mxGetData(E_row_ptr),
+        (int *)mxGetData(E_col_ind), (value_t *)mxGetData(E_val),
+        (int *)mxGetData(F_row_ptr), (int *)mxGetData(F_col_ind),
+        (value_t *)mxGetData(F_val), (value_t *)mxGetData(s_row),
+        (value_t *)mxGetData(s_col), (int *)mxGetData(p),
+        (int *)mxGetData(p_inv), (int *)mxGetData(q), (int *)mxGetData(q_inv));
+
+    // increment index by 1 for MATLAB/Fortran index base
+    std::for_each((int *)mxGetData(L_row_ptr),
+                  (int *)mxGetData(L_row_ptr) + mxGetM(L_row_ptr),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(L_col_ind),
+                  (int *)mxGetData(L_col_ind) + mxGetM(L_col_ind),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(U_row_ptr),
+                  (int *)mxGetData(U_row_ptr) + mxGetM(U_row_ptr),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(U_col_ind),
+                  (int *)mxGetData(U_col_ind) + mxGetM(U_col_ind),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(E_row_ptr),
+                  (int *)mxGetData(E_row_ptr) + mxGetM(E_row_ptr),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(E_col_ind),
+                  (int *)mxGetData(E_col_ind) + mxGetM(E_col_ind),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(F_row_ptr),
+                  (int *)mxGetData(F_row_ptr) + mxGetM(F_row_ptr),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(F_col_ind),
+                  (int *)mxGetData(F_col_ind) + mxGetM(F_col_ind),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(p), (int *)mxGetData(p) + mxGetM(p),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(p_inv),
+                  (int *)mxGetData(p_inv) + mxGetM(p_inv), [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(q), (int *)mxGetData(q) + mxGetM(q),
+                  [](int &v) { ++v; });
+    std::for_each((int *)mxGetData(q_inv),
+                  (int *)mxGetData(q_inv) + mxGetM(q_inv), [](int &v) { ++v; });
+
+    // build CRS struct for L
+    auto *L_struct = mxCreateStructMatrix(1, 1, 5, crs_attrs);
+    mxSetFieldByNumber(L_struct, 0, 0, L_row_ptr);
+    mxSetFieldByNumber(L_struct, 0, 1, L_col_ind);
+    mxSetFieldByNumber(L_struct, 0, 2, L_val);
+    do {
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(mm) = m;
+      mxSetFieldByNumber(L_struct, 0, 3, mm);
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(nn) = m;
+      mxSetFieldByNumber(L_struct, 0, 4, nn);
+    } while (false);
+
+    // build CRS struct for U
+    auto *U_struct = mxCreateStructMatrix(1, 1, 5, crs_attrs);
+    mxSetFieldByNumber(U_struct, 0, 0, U_row_ptr);
+    mxSetFieldByNumber(U_struct, 0, 1, U_col_ind);
+    mxSetFieldByNumber(U_struct, 0, 2, U_val);
+    do {
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(mm) = m;
+      mxSetFieldByNumber(U_struct, 0, 3, mm);
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(nn) = m;
+      mxSetFieldByNumber(U_struct, 0, 4, nn);
+    } while (false);
+
+    // build CRS struct for E
+    auto *E_struct = mxCreateStructMatrix(1, 1, 5, crs_attrs);
+    mxSetFieldByNumber(E_struct, 0, 0, E_row_ptr);
+    mxSetFieldByNumber(E_struct, 0, 1, E_col_ind);
+    mxSetFieldByNumber(E_struct, 0, 2, E_val);
+    do {
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(mm) = n - m;
+      mxSetFieldByNumber(E_struct, 0, 3, mm);
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(nn) = m;
+      mxSetFieldByNumber(E_struct, 0, 4, nn);
+    } while (false);
+
+    // build CRS struct for F
+    auto *F_struct = mxCreateStructMatrix(1, 1, 5, crs_attrs);
+    mxSetFieldByNumber(F_struct, 0, 0, F_row_ptr);
+    mxSetFieldByNumber(F_struct, 0, 1, F_col_ind);
+    mxSetFieldByNumber(F_struct, 0, 2, F_val);
+    do {
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(mm) = m;
+      mxSetFieldByNumber(F_struct, 0, 3, mm);
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
+      *(int *)mxGetData(nn) = n - m;
+      mxSetFieldByNumber(F_struct, 0, 4, nn);
+    } while (false);
+
+    // build prec struct
+    auto *prec_struct = mxCreateStructMatrix(1, 1, 11, prec_attrs);
+    mxSetFieldByNumber(prec_struct, 0, 0, L_struct);
+    mxSetFieldByNumber(prec_struct, 0, 1, D_B);
+    mxSetFieldByNumber(prec_struct, 0, 2, U_struct);
+    mxSetFieldByNumber(prec_struct, 0, 3, E_struct);
+    mxSetFieldByNumber(prec_struct, 0, 4, F_struct);
+    mxSetFieldByNumber(prec_struct, 0, 5, s_row);
+    mxSetFieldByNumber(prec_struct, 0, 6, s_col);
+    mxSetFieldByNumber(prec_struct, 0, 7, p);
+    mxSetFieldByNumber(prec_struct, 0, 8, p_inv);
+    mxSetFieldByNumber(prec_struct, 0, 9, q);
+    mxSetFieldByNumber(prec_struct, 0, 10, q_inv);
+
+    // assemble to cell array for this level
+    mxSetCell(*hilu, index, prec_struct);
+
+    ++index;  // increment index
+    // check for last level
+    if (iter->is_last_level()) {
+      typename crs_t::size_type nrows, ncols;
+      value_t *dummy(nullptr);
+      iter->inquire_or_export_dense(dummy, nrows, ncols, destroy);
+      auto *mat = mxCreateUninitNumericMatrix(
+          nrows, ncols, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
+      iter->inquire_or_export_dense((value_t *)mxGetData(mat), nrows, ncols,
+                                    destroy);
+      mxSetCell(*hilu, index, mat);
+    }
+  }
 }
 }  // namespace hilucsi4m
 

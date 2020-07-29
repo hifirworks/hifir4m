@@ -52,6 +52,12 @@ classdef HILUCSI
             [varargout{1:nargout}] = hilucsi4m_factorize(obj.dbase, A, ...
                 varargin{:});
         end
+        function hilu = export(obj, varargin)
+            %EXPORT - Export internal data in C++ to MATLAB
+            %
+            % See Also: HILUCSI4M_EXPORT
+            hilu = hilucsi4m_export(obj.dbase, varargin{:});
+        end
         function varargout = m_solve(obj, varargin)
             %M_SOLVE - Accessing inv(M)
             %

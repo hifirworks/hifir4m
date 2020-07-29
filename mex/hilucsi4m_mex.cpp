@@ -21,10 +21,11 @@
 
 namespace hilucsi4m {
 enum {
-  HILUCSI4M_FACTORIZE = HILUCSI4M_DESTROY + 1,   ///< Factorize
-  HILUCSI4M_M_SOLVE = HILUCSI4M_FACTORIZE + 1,   ///< preconditioner solve
-  HILUCSI4M_KSP_SOLVE = HILUCSI4M_M_SOLVE + 1,   ///< KSP solve
-  HILUCSI4M_KSP_NULL = HILUCSI4M_KSP_SOLVE + 1,  ///< KSP for left null
+  HILUCSI4M_FACTORIZE = HILUCSI4M_DESTROY + 1,     ///< Factorize
+  HILUCSI4M_M_SOLVE = HILUCSI4M_FACTORIZE + 1,     ///< preconditioner solve
+  HILUCSI4M_KSP_SOLVE = HILUCSI4M_M_SOLVE + 1,     ///< KSP solve
+  HILUCSI4M_KSP_NULL = HILUCSI4M_KSP_SOLVE + 1,    ///< KSP for left null
+  HILUCSI4M_EXPORT_DATA = HILUCSI4M_KSP_NULL + 1,  ///< export data
 };
 }
 
@@ -260,64 +261,73 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     return;
   }
 
-  if (action != hilucsi4m::HILUCSI4M_KSP_NULL)
+  if (action == hilucsi4m::HILUCSI4M_KSP_NULL) {
+    // KSP null solver
+    // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose,
+    // hiprec)
+    if (nrhs < 6)
+      mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                        "KSP solver requires at least 6 inputs");
+    if (nlhs < 1)
+      mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                        "KSP solver requires at least 1 output(s)");
+    const int restart = nrhs < 7 ? 30 : (int)mxGetScalar(prhs[6]);
+    const double rtol = nrhs < 8 ? 1e-6 : mxGetScalar(prhs[7]);
+    const int maxit = nrhs < 9 ? 500 : (int)mxGetScalar(prhs[8]);
+    if (nrhs > 9) {
+      // has initial guess
+      plhs[0] = mxDuplicateArray(prhs[9]);
+    } else {
+      plhs[0] = mxCreateDoubleMatrix(mxGetM(prhs[5]), 1, mxREAL);
+    }
+    const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
+    const bool hiprec = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
+    int flag, iters;
+    double res, tt;
+    if (is_mixed) {
+      if (hiprec)
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true, true>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0]);
+      else
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true, false>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0]);
+    } else {
+      if (hiprec)
+        std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false, true>(
+            id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
+            prhs[5], plhs[0]);
+      else
+        std::tie(flag, iters, res, tt) =
+            hilucsi4m::KSP_null_solve<false, false>(id, restart, maxit, rtol,
+                                                    verbose, prhs[2], prhs[3],
+                                                    prhs[4], prhs[5], plhs[0]);
+    }
+    if (nlhs < 2) {
+      // handle flag
+      if (flag != hilucsi::ksp::STAGNATED) {
+        const char* msg = hilucsi::ksp::flag_repr("GMRES_Null", flag).c_str();
+        mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
+                          "GMRES_Null failed with flag %d and message:\n%s",
+                          flag, msg);
+      }
+    } else {
+      plhs[1] = mxCreateDoubleScalar((double)flag);
+      if (nlhs > 2) plhs[2] = mxCreateDoubleScalar((double)iters);
+      if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(res);
+      if (nlhs > 4) plhs[4] = mxCreateDoubleScalar(tt);
+    }
+  }
+
+  if (action != hilucsi4m::HILUCSI4M_EXPORT_DATA)
     mexErrMsgIdAndTxt("hilucsi4m:mexgateway", "invalid action flag %d", action);
 
-  // KSP null solver
-  // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose,
-  // hiprec)
-  if (nrhs < 6)
-    mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
-                      "KSP solver requires at least 6 inputs");
-  if (nlhs < 1)
-    mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
-                      "KSP solver requires at least 1 output(s)");
-  const int restart = nrhs < 7 ? 30 : (int)mxGetScalar(prhs[6]);
-  const double rtol = nrhs < 8 ? 1e-6 : mxGetScalar(prhs[7]);
-  const int maxit = nrhs < 9 ? 500 : (int)mxGetScalar(prhs[8]);
-  if (nrhs > 9) {
-    // has initial guess
-    plhs[0] = mxDuplicateArray(prhs[9]);
-  } else {
-    plhs[0] = mxCreateDoubleMatrix(mxGetM(prhs[5]), 1, mxREAL);
-  }
-  const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
-  const bool hiprec = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
-  int flag, iters;
-  double res, tt;
-  if (is_mixed) {
-    if (hiprec)
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true, true>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0]);
-    else
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<true, false>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0]);
-  } else {
-    if (hiprec)
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false, true>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0]);
-    else
-      std::tie(flag, iters, res, tt) = hilucsi4m::KSP_null_solve<false, false>(
-          id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4], prhs[5],
-          plhs[0]);
-  }
-  if (nlhs < 2) {
-    // handle flag
-    if (flag != hilucsi::ksp::STAGNATED) {
-      const char* msg = hilucsi::ksp::flag_repr("GMRES_Null", flag).c_str();
-      mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
-                        "GMRES_Null failed with flag %d and message:\n%s", flag,
-                        msg);
-    }
-  } else {
-    plhs[1] = mxCreateDoubleScalar((double)flag);
-    if (nlhs > 2) plhs[2] = mxCreateDoubleScalar((double)iters);
-    if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(res);
-    if (nlhs > 4) plhs[4] = mxCreateDoubleScalar(tt);
-  }
+  // act, dbase, destroy
+  const bool destroy = nrhs > 2 ? (bool)mxGetScalar(prhs[2]) : false;
+
+  is_mixed ? hilucsi4m::M_export<true>(id, destroy, plhs)
+           : hilucsi4m::M_export<false>(id, destroy, plhs);
 }
 
 static bool decode_database_struct(const mxArray* rhs, int& id,
