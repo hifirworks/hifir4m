@@ -20,7 +20,7 @@ for m = 1:length(mods)
     % assume GCC openmp
     cmd = ['mex ' ...
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
-        'CXXFLAGS="$CXXFLAGS -O3 -std=c++11 -fopenmp" ' ... % C++11/OpenMP compiler
+        'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 -fopenmp" ' ... % C++11/OpenMP compiler
         '-I' fullfile(hilucsi4m_root, 'hilucsi', 'src') ' ' ... % include
         '-v -O ' r2017 ' -output ' mx ' ' src ...
         ' -lmwblas -lmwlapack' ...  % link to MATLAB Lapack/BLAS
