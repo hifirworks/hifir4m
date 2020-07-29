@@ -342,6 +342,8 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
   hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
   // get options
   const auto opts = create_opt_from_struct(opt);
+  const auto elim_nz = A.eliminate(1e-15, true);
+  if (opts.verbose) hilucsi_info("eliminated %zd small entries in A", elim_nz);
   if (!data->M) data->M.reset(new typename data_t::prec_t());
   hilucsi::DefaultTimer timer;
   timer.start();
