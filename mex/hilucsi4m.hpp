@@ -266,6 +266,7 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
   opt.symm_pre_lvls = get_field(16);
   opt.threads = get_field(17);
   opt.fat_schur_1st = get_field(18);
+  opt.qrcp_cond = get_field(19);
   return opt;
 }
 

@@ -41,7 +41,8 @@ persistent fnames
 if isempty(fnames)
     fnames = {'tau_L', 'tau_U', 'tau_d', 'tau_kappa', 'alpha_L', 'alpha_U', ...
         'rho', 'c_d', 'c_h', 'N', 'verbose', 'rf_par', 'reorder', 'saddle', ...
-        'check', 'pre_scale', 'symm_pre_lvls', 'threads', 'fat_schur_1st'};
+        'check', 'pre_scale', 'symm_pre_lvls', 'threads', 'fat_schur_1st', ...
+        'qrcp_cond'};
 end
 
 p = inputParser;
@@ -64,6 +65,7 @@ addOptional(p, 'pre_scale', 0, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'symm_pre_lvls', 1, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'threads', 0, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'fat_schur_1st', 0, @(x) isscalar(x) && x >= 0);
+addOptional(p, 'qrcp_cond', 0, @(x) isscalar(x));
 parse(p, varargin{:});
 sorted_opts = p.Results;
 % NOTE parser gives sorted structure
