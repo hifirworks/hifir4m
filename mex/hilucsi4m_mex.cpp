@@ -318,6 +318,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
       if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(res);
       if (nlhs > 4) plhs[4] = mxCreateDoubleScalar(tt);
     }
+    return;
   }
 
   if (action != hilucsi4m::HILUCSI4M_EXPORT_DATA)
