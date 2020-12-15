@@ -98,6 +98,7 @@ if isempty(x0); x0 = zeros(size(b)); end
 if issparse(A); A = hilucsi4m_sp2crs(A); end
 assert(isa(A.row_ptr, 'int32'));
 assert(isa(A.col_ind, 'int32'));
+A = hilucsi4m_2int64(A);
 if length(varargin) < 7 || isempty(varargin{7})
     [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_SOLVE, dbase, ...
         A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...

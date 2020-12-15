@@ -31,39 +31,39 @@
 extern bool ioFlush(void);
 
 // configure the printing to matlab command window stead of stdout/stderr
-#ifdef HILUCSI_STDOUT
-#  undef HILUCSI_STDOUT
+#ifdef HIF_STDOUT
+#undef HIF_STDOUT
 #endif
-#ifdef HILUCSI_STDERR
-#  undef HILUCSI_STDERR
+#ifdef HIF_STDERR
+#undef HIF_STDERR
 #endif
-#define HILUCSI_STDOUT(__msg) \
-  do {                        \
-    mexPrintf(__msg);         \
-    mexPrintf("\n");          \
-    ioFlush();                \
+#define HIF_STDOUT(__msg) \
+  do {                    \
+    mexPrintf(__msg);     \
+    mexPrintf("\n");      \
+    ioFlush();            \
   } while (false)
-#define HILUCSI_STDERR(__msg) \
-  do {                        \
-    mexWarnMsgTxt(__msg);     \
-    mexWarnMsgTxt("\n");      \
-    ioFlush();                \
+#define HIF_STDERR(__msg) \
+  do {                    \
+    mexWarnMsgTxt(__msg); \
+    mexWarnMsgTxt("\n");  \
+    ioFlush();            \
   } while (false)
 
 // No ASCII color
-#ifndef HILUCSI_LOG_PLAIN_PREFIX
-#  define HILUCSI_LOG_PLAIN_PREFIX
+#ifndef HIF_LOG_PLAIN_PREFIX
+#define HIF_LOG_PLAIN_PREFIX
 #endif
 
 // enforce throw instead of calling abort!
-#ifndef HILUCSI_THROW
-#  define HILUCSI_THROW
-#endif  // HILUCSI_THROW
+#ifndef HIF_THROW
+#define HIF_THROW
+#endif  // HIF_THROW
 
 // lapack integer
-#ifdef HILUCSI_LAPACK_INT
-#  undef HILUCSI_LAPACK_INT
+#ifdef HIF_LAPACK_INT
+#undef HIF_LAPACK_INT
 #endif
-#define HILUCSI_LAPACK_INT mwSignedIndex
+#define HIF_LAPACK_INT mwSignedIndex
 
 #endif  // HILUCSI4M_CONFIG_HPP_

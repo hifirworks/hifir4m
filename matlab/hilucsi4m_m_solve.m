@@ -43,6 +43,7 @@ else
         if issparse(A); A = hilucsi4m_sp2crs(A); end
         assert(isa(A.row_ptr, 'int32'));
         assert(isa(A.col_ind, 'int32'));
+        A = hilucsi4m_2int64(A);
         [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_M_SOLVE, dbase, b, ...
             A.row_ptr, A.col_ind, A.val, N);
     end

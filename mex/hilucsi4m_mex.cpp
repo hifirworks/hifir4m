@@ -247,7 +247,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nlhs < 2) {
       // handle flag
       if (flag) {
-        const char* msg = hilucsi::ksp::flag_repr("FGMRES", flag).c_str();
+        const char* msg = hif::ksp::flag_repr("FGMRES", flag).c_str();
         mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
                           "FGMRES failed with flag %d and message:\n%s", flag,
                           msg);
@@ -306,8 +306,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     }
     if (nlhs < 2) {
       // handle flag
-      if (flag != hilucsi::ksp::STAGNATED) {
-        const char* msg = hilucsi::ksp::flag_repr("GMRES_Null", flag).c_str();
+      if (flag != hif::ksp::STAGNATED) {
+        const char* msg = hif::ksp::flag_repr("GMRES_Null", flag).c_str();
         mexErrMsgIdAndTxt("hilucsi4m:mexgateway:ksp_solve",
                           "GMRES_Null failed with flag %d and message:\n%s",
                           flag, msg);
@@ -350,7 +350,7 @@ static void get_fac_info(int id, mwSize& nnz, mwSize& nnz_ef, mwSize& deferrals,
                          mwSize& space_drops, mwSize& lvls) {
   auto data = hilucsi4m::database<IsMixed>(hilucsi4m::HILUCSI4M_GET, id);
   nnz = data->M->nnz();
-  nnz_ef = data->M->nnz_EF();
+  nnz_ef = data->M->nnz_ef();
   deferrals = data->M->stats(0);
   dy_deferrals = data->M->stats(1);
   drops = data->M->stats(4);

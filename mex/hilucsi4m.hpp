@@ -30,15 +30,21 @@
 
 #include "hilucsi4m_config.hpp"
 // avoid sorting!
-#include "HILUCSI.hpp"
+#include "HIF.hpp"
 
 namespace hilucsi4m {
 // structure of preconditioner and solver
 
+#ifdef HILIUCSI4M_USE_32INT
+typedef int integer_type;
+#else
+typedef mwSignedIndex integer_type;
+#endif
+
 template <class MType, class ValueType = void>
 class OperatorUpdateSolver
-    : public hilucsi::ksp::UserOperatorBase<MType, ValueType> {
-  using _base = hilucsi::ksp::UserOperatorBase<MType, ValueType>;
+    : public hif::ksp::UserOperatorBase<MType, ValueType> {
+  using _base = hif::ksp::UserOperatorBase<MType, ValueType>;
 
  public:
   using array_type = typename _base::array_type;
@@ -56,7 +62,7 @@ class OperatorUpdateSolver
                     array_type &x0) const {
     // step 1: (2*I-A*inv(M)) * b
     _base::solve(b, _v);
-    hilucsi::mt::mv_nt(A, _v, x0);
+    hif::mt::mv_nt(A, _v, x0);
     const size_type n = _v.size();
     for (size_type i(0); i < n; ++i) _v[i] = 2.0 * b[i] - x0[i];
     // step 2: inv(M)*v
@@ -67,9 +73,9 @@ class OperatorUpdateSolver
   mutable array_type _v;  ///< workspace
 };
 
-class MexNspFilter : public hilucsi::NspFilter {
+class MexNspFilter : public hif::NspFilter {
  public:
-  using base = hilucsi::NspFilter;
+  using base = hif::NspFilter;
 
   explicit MexNspFilter(const std::size_t start = 0,
                         const std::size_t end = static_cast<std::size_t>(-1))
@@ -135,10 +141,10 @@ struct HILUCSI4M_Database {
 
  public:
   using prec_t =
-      typename std::conditional<IsMixed, hilucsi::HILUCSI<float, int>,
-                                hilucsi::DefaultHILUCSI>::type;
+      typename std::conditional<IsMixed, hif::HIF<float, integer_type>,
+                                hif::HIF<double, integer_type>>::type;
   ///< preconditioner type
-  using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t, _value_type>;
+  using ksp_factory_t = hif::ksp::KSPFactory<prec_t, _value_type>;
   ///< KSP factory type
   using solver_t = typename ksp_factory_t::fgmres;           ///< FMGRES type
   using null_solver_t = typename ksp_factory_t::gmres_null;  ///< left null
@@ -157,8 +163,8 @@ struct HILUCSI4M_Database {
 // // structure of preconditioner with mixed precision
 // template <>
 // struct HILUCSI4M_Database<true> {
-//   using prec_t        = hilucsi::HILUCSI<float, int>;  ///< preconditioner
-//   type using ksp_factory_t = hilucsi::ksp::KSPFactory<prec_t, double>;
+//   using prec_t        = hif::HILUCSI<float, int>;  ///< preconditioner
+//   type using ksp_factory_t = hif::ksp::KSPFactory<prec_t, double>;
 //   ///< KSP factory type
 //   using solver_t = ksp_factory_t::fgmres;
 //   ///< FMGRES type
@@ -231,16 +237,16 @@ inline HILUCSI4M_Database<IsMixed> *database(const int action, int &id) {
  * @brief Create a opt from a MATLAB structure
  *
  * @param[in] rhs MATLAB mex array
- * @return hilucsi::Options control parameters for HILUCSI
+ * @return hif::Options control parameters for HILUCSI
  *
  * @note This routine requires the field ordering in the matlab structure
  *       follows the sames order as how the attributes appear in the C++
  *       struct definition.
  */
-inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
+inline hif::Options create_opt_from_struct(const mxArray *rhs) {
   if (!mxIsStruct(rhs))
     mexErrMsgIdAndTxt("hilucsi4m:options:badInput", "input must be structure");
-  hilucsi::Options opt = hilucsi::get_default_options();
+  hif::Options opt = hif::get_default_options();
   // WARNING! The structure from MATLAB should be initialized by a structured
   // routine with the following fields that are accessed. In addition, the
   // index must align with the order in C++ struct of Options
@@ -249,8 +255,8 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
   };
   opt.tau_L = get_field(0);
   opt.tau_U = get_field(1);
-  opt.tau_d = get_field(2);
-  opt.tau_kappa = get_field(3);
+  opt.kappa_d = get_field(2);
+  opt.kappa = get_field(3);
   opt.alpha_L = get_field(4);
   opt.alpha_U = get_field(5);
   opt.rho = get_field(6);
@@ -260,13 +266,13 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
   opt.verbose = get_field(10);
   opt.rf_par = get_field(11);
   opt.reorder = get_field(12);
-  opt.saddle = get_field(13);
+  opt.spd = get_field(13);
   opt.check = get_field(14);
   opt.pre_scale = get_field(15);
   opt.symm_pre_lvls = get_field(16);
   opt.threads = get_field(17);
   opt.fat_schur_1st = get_field(18);
-  opt.qrcp_cond = get_field(19);
+  opt.rrqr_cond = get_field(19);
   return opt;
 }
 
@@ -289,13 +295,21 @@ inline hilucsi::Options create_opt_from_struct(const mxArray *rhs) {
  */
 inline void convert_crs_mx2pointer(const std::string &prefix,
                                    const mxArray *rowptr, const mxArray *colind,
-                                   const mxArray *val, int **rptr_, int **cptr_,
-                                   double **vptr_, mwSize *n_) {
+                                   const mxArray *val, integer_type **rptr_,
+                                   integer_type **cptr_, double **vptr_,
+                                   mwSize *n_) {
+#ifdef HILIUCSI4M_USE_32INT
   if (!mxIsInt32(rowptr) || !mxIsInt32(colind))
     mexErrMsgIdAndTxt((prefix + ":badIntDtype").c_str(),
                       "rowptr and colind must be int32");
+#else
+  if (!mxIsInt64(rowptr) || !mxIsInt64(colind))
+    mexErrMsgIdAndTxt((prefix + ":badIntDtype").c_str(),
+                      "rowptr and colind must be int64");
+#endif
   const auto n = mxGetM(rowptr) - 1;
-  int *rptr = (int *)mxGetData(rowptr), *cptr = (int *)mxGetData(colind);
+  integer_type *rptr = (integer_type *)mxGetData(rowptr),
+               *cptr = (integer_type *)mxGetData(colind);
   const auto nnz = rptr[n] - rptr[0];
   if (mxGetM(colind) < (mwSize)nnz || mxGetM(val) < (mwSize)nnz)
     mexErrMsgIdAndTxt((prefix + ":badLength").c_str(), "bad nnz length %d",
@@ -332,19 +346,19 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
   auto data = database<IsMixed>(HILUCSI4M_GET, id);
 
   mwSize n;
-  int *rptr, *cptr;
+  integer_type *rptr, *cptr;
   double *vptr;
   convert_crs_mx2pointer(std::string("hilucsi4m:factorize"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
 
   // create csr wrapper from HILUCSI
-  hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
+  hif::CRS<double, integer_type> A(n, n, rptr, cptr, vptr, true);
   // get options
   const auto opts = create_opt_from_struct(opt);
   const auto elim_nz = A.eliminate(1e-15, true);
-  if (opts.verbose) hilucsi_info("eliminated %zd small entries in A", elim_nz);
+  if (opts.verbose) hif_info("eliminated %zd small entries in A", elim_nz);
   if (!data->M) data->M.reset(new typename data_t::prec_t());
-  hilucsi::DefaultTimer timer;
+  hif::DefaultTimer timer;
   timer.start();
   try {
     data->M->factorize(A, 0, opts);
@@ -382,10 +396,10 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
     mexErrMsgIdAndTxt("hilucsi4m:M_solve:badRhsSize",
                       "rhs size does not agree with lhs or M");
 
-  using array_t = hilucsi::Array<double>;
+  using array_t = hif::Array<double>;
   array_t b(data->M->nrows(), mxGetPr(rhs), true),
       x(data->M->nrows(), mxGetPr(lhs), true);
-  hilucsi::DefaultTimer timer;
+  hif::DefaultTimer timer;
   timer.start();
   try {
     data->M->solve(b, x);
@@ -433,17 +447,17 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
                       "rhs size does not agree with lhs or M");
 
   mwSize n;
-  int *rptr, *cptr;
+  integer_type *rptr, *cptr;
   double *vptr;
   convert_crs_mx2pointer(std::string("hilucsi4m:M_solve_inner"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
 
   // create csr wrapper from HILUCSI
-  hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
-  using array_t = hilucsi::Array<double>;
+  hif::CRS<double, integer_type> A(n, n, rptr, cptr, vptr, true);
+  using array_t = hif::Array<double>;
   array_t b(data->M->nrows(), mxGetPr(rhs), true),
       x(data->M->nrows(), mxGetPr(lhs), true);
-  hilucsi::DefaultTimer timer;
+  hif::DefaultTimer timer;
   try {
     data->M->solve(A, b, N, x);  // call inner iteration kernel
   } catch (const std::exception &e) {
@@ -491,7 +505,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
                       "rhs/lhs must be column vector");
   // get matrix
   mwSize n;
-  int *rptr, *cptr;
+  integer_type *rptr, *cptr;
   double *vptr;
   convert_crs_mx2pointer(std::string("hilucsi4m:KSP_solve"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
@@ -506,9 +520,9 @@ inline std::tuple<int, int, double, double> KSP_solve(
   ksp.set_M(data->M);  // setup preconditioner
 
   // create csr wrapper from HILUCSI
-  hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
+  hif::CRS<double, integer_type> A(n, n, rptr, cptr, vptr, true);
   // arrays
-  using array_t = hilucsi::Array<double>;
+  using array_t = hif::Array<double>;
   array_t b(n, mxGetPr(rhs), true), x(n, mxGetPr(lhs), true);
 
   if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
@@ -520,7 +534,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
     data->M->nsp.reset(new MexNspFilter(cst_nsp[0] - 1, cst_nsp[1]));
   else if (fname) {
     if (verbose)
-      hilucsi_info(
+      hif_info(
           "setting up user (right) null space filter with\n"
           "\tcallback name: %s\n"
           "\tfunction handle: %s",
@@ -536,13 +550,13 @@ inline std::tuple<int, int, double, double> KSP_solve(
     mex_nsp->enable_or();
   }
 
-  hilucsi::DefaultTimer timer;
+  hif::DefaultTimer timer;
   int flag;
   std::size_t iters;
   timer.start();
   try {
     if (!update)
-      std::tie(flag, iters) = ksp.solve(A, b, x, hilucsi::ksp::TRADITION,
+      std::tie(flag, iters) = ksp.solve(A, b, x, hif::ksp::TRADITION,
                                         true /* always with guess */, verbose);
     else {
       const auto M =
@@ -597,7 +611,7 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
                       "rhs/lhs must be column vector");
   // get matrix
   mwSize n;
-  int *rptr, *cptr;
+  integer_type *rptr, *cptr;
   double *vptr;
   convert_crs_mx2pointer(std::string("hilucsi4m:KSP_solve"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
@@ -608,9 +622,9 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
                       "rhs size does not agree with lhs, M or A");
 
   // create csr wrapper from HILUCSI
-  hilucsi::CRS<double, int> A(n, n, rptr, cptr, vptr, true);
+  hif::CRS<double, integer_type> A(n, n, rptr, cptr, vptr, true);
   // arrays
-  using array_t = hilucsi::Array<double>;
+  using array_t = hif::Array<double>;
   array_t b(n, mxGetPr(rhs), true), x(n, mxGetPr(lhs), true);
 
   if (!UseHi) {
@@ -629,19 +643,17 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
     if (rtol > 0.0) ksp.set_rtol(rtol);
   }
 
-  hilucsi::DefaultTimer timer;
+  hif::DefaultTimer timer;
   int flag;
   std::size_t iters;
   timer.start();
   try {
     if (!UseHi)
-      std::tie(flag, iters) =
-          data->ksp_null->solve(A, b, x, hilucsi::ksp::TRADITION,
-                                true /* always with guess */, verbose);
+      std::tie(flag, iters) = data->ksp_null->solve(
+          A, b, x, hif::ksp::TRADITION, true /* always with guess */, verbose);
     else
-      std::tie(flag, iters) =
-          data->ksp_null_hi->solve(A, b, x, hilucsi::ksp::TRADITION,
-                                   true /* always with guess */, verbose);
+      std::tie(flag, iters) = data->ksp_null_hi->solve(
+          A, b, x, hif::ksp::TRADITION, true /* always with guess */, verbose);
   } catch (const std::exception &e) {
     mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
                       "KSP_solve failed with message:\n%s", e.what());
@@ -702,9 +714,9 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     iter->inquire_sizes(m, n, nnz_L, nnz_U, nnz_E, nnz_F);
     // allocate for L_B
     auto *L_row_ptr =
-        mxCreateUninitNumericMatrix(m + 1, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(m + 1, 1, mxINT64_CLASS, mxREAL);
     auto *L_col_ind =
-        mxCreateUninitNumericMatrix(nnz_L, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(nnz_L, 1, mxINT64_CLASS, mxREAL);
     auto *L_val = mxCreateUninitNumericMatrix(
         nnz_L, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // allocate for D_B
@@ -712,23 +724,23 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
         m, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // allocate for U_B
     auto *U_row_ptr =
-        mxCreateUninitNumericMatrix(m + 1, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(m + 1, 1, mxINT64_CLASS, mxREAL);
     auto *U_col_ind =
-        mxCreateUninitNumericMatrix(nnz_U, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(nnz_U, 1, mxINT64_CLASS, mxREAL);
     auto *U_val = mxCreateUninitNumericMatrix(
         nnz_U, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // allocate for E
     auto *E_row_ptr =
-        mxCreateUninitNumericMatrix(n - m + 1, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(n - m + 1, 1, mxINT64_CLASS, mxREAL);
     auto *E_col_ind =
-        mxCreateUninitNumericMatrix(nnz_E, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(nnz_E, 1, mxINT64_CLASS, mxREAL);
     auto *E_val = mxCreateUninitNumericMatrix(
         nnz_E, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // allocate for F
     auto *F_row_ptr =
-        mxCreateUninitNumericMatrix(m + 1, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(m + 1, 1, mxINT64_CLASS, mxREAL);
     auto *F_col_ind =
-        mxCreateUninitNumericMatrix(nnz_F, 1, mxINT32_CLASS, mxREAL);
+        mxCreateUninitNumericMatrix(nnz_F, 1, mxINT64_CLASS, mxREAL);
     auto *F_val = mxCreateUninitNumericMatrix(
         nnz_F, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // row/column scaling
@@ -737,55 +749,61 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
          *s_col = mxCreateUninitNumericMatrix(
              n, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // row/column permutation arrays
-    auto *p = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL),
-         *p_inv = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL),
-         *q = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL),
-         *q_inv = mxCreateUninitNumericMatrix(n, 1, mxINT32_CLASS, mxREAL);
+    auto *p = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
+         *p_inv = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
+         *q = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
+         *q_inv = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL);
 
     iter->template export_sparse_data<crs_t>(
-        (int *)mxGetData(L_row_ptr), (int *)mxGetData(L_col_ind),
-        (value_t *)mxGetData(L_val), (value_t *)mxGetData(D_B),
-        (int *)mxGetData(U_row_ptr), (int *)mxGetData(U_col_ind),
-        (value_t *)mxGetData(U_val), (int *)mxGetData(E_row_ptr),
-        (int *)mxGetData(E_col_ind), (value_t *)mxGetData(E_val),
-        (int *)mxGetData(F_row_ptr), (int *)mxGetData(F_col_ind),
-        (value_t *)mxGetData(F_val), (value_t *)mxGetData(s_row),
-        (value_t *)mxGetData(s_col), (int *)mxGetData(p),
-        (int *)mxGetData(p_inv), (int *)mxGetData(q), (int *)mxGetData(q_inv));
+        (integer_type *)mxGetData(L_row_ptr),
+        (integer_type *)mxGetData(L_col_ind), (value_t *)mxGetData(L_val),
+        (value_t *)mxGetData(D_B), (integer_type *)mxGetData(U_row_ptr),
+        (integer_type *)mxGetData(U_col_ind), (value_t *)mxGetData(U_val),
+        (integer_type *)mxGetData(E_row_ptr),
+        (integer_type *)mxGetData(E_col_ind), (value_t *)mxGetData(E_val),
+        (integer_type *)mxGetData(F_row_ptr),
+        (integer_type *)mxGetData(F_col_ind), (value_t *)mxGetData(F_val),
+        (value_t *)mxGetData(s_row), (value_t *)mxGetData(s_col),
+        (integer_type *)mxGetData(p), (integer_type *)mxGetData(p_inv),
+        (integer_type *)mxGetData(q), (integer_type *)mxGetData(q_inv));
 
     // increment index by 1 for MATLAB/Fortran index base
-    std::for_each((int *)mxGetData(L_row_ptr),
-                  (int *)mxGetData(L_row_ptr) + mxGetM(L_row_ptr),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(L_col_ind),
-                  (int *)mxGetData(L_col_ind) + mxGetM(L_col_ind),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(U_row_ptr),
-                  (int *)mxGetData(U_row_ptr) + mxGetM(U_row_ptr),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(U_col_ind),
-                  (int *)mxGetData(U_col_ind) + mxGetM(U_col_ind),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(E_row_ptr),
-                  (int *)mxGetData(E_row_ptr) + mxGetM(E_row_ptr),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(E_col_ind),
-                  (int *)mxGetData(E_col_ind) + mxGetM(E_col_ind),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(F_row_ptr),
-                  (int *)mxGetData(F_row_ptr) + mxGetM(F_row_ptr),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(F_col_ind),
-                  (int *)mxGetData(F_col_ind) + mxGetM(F_col_ind),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(p), (int *)mxGetData(p) + mxGetM(p),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(p_inv),
-                  (int *)mxGetData(p_inv) + mxGetM(p_inv), [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(q), (int *)mxGetData(q) + mxGetM(q),
-                  [](int &v) { ++v; });
-    std::for_each((int *)mxGetData(q_inv),
-                  (int *)mxGetData(q_inv) + mxGetM(q_inv), [](int &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(L_row_ptr),
+                  (integer_type *)mxGetData(L_row_ptr) + mxGetM(L_row_ptr),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(L_col_ind),
+                  (integer_type *)mxGetData(L_col_ind) + mxGetM(L_col_ind),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(U_row_ptr),
+                  (integer_type *)mxGetData(U_row_ptr) + mxGetM(U_row_ptr),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(U_col_ind),
+                  (integer_type *)mxGetData(U_col_ind) + mxGetM(U_col_ind),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(E_row_ptr),
+                  (integer_type *)mxGetData(E_row_ptr) + mxGetM(E_row_ptr),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(E_col_ind),
+                  (integer_type *)mxGetData(E_col_ind) + mxGetM(E_col_ind),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(F_row_ptr),
+                  (integer_type *)mxGetData(F_row_ptr) + mxGetM(F_row_ptr),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(F_col_ind),
+                  (integer_type *)mxGetData(F_col_ind) + mxGetM(F_col_ind),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(p),
+                  (integer_type *)mxGetData(p) + mxGetM(p),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(p_inv),
+                  (integer_type *)mxGetData(p_inv) + mxGetM(p_inv),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(q),
+                  (integer_type *)mxGetData(q) + mxGetM(q),
+                  [](integer_type &v) { ++v; });
+    std::for_each((integer_type *)mxGetData(q_inv),
+                  (integer_type *)mxGetData(q_inv) + mxGetM(q_inv),
+                  [](integer_type &v) { ++v; });
 
     // build CRS struct for L
     auto *L_struct = mxCreateStructMatrix(1, 1, 5, crs_attrs);
@@ -793,11 +811,11 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     mxSetFieldByNumber(L_struct, 0, 1, L_col_ind);
     mxSetFieldByNumber(L_struct, 0, 2, L_val);
     do {
-      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(mm) = m;
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(mm) = m;
       mxSetFieldByNumber(L_struct, 0, 3, mm);
-      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(nn) = m;
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(nn) = m;
       mxSetFieldByNumber(L_struct, 0, 4, nn);
     } while (false);
 
@@ -807,11 +825,11 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     mxSetFieldByNumber(U_struct, 0, 1, U_col_ind);
     mxSetFieldByNumber(U_struct, 0, 2, U_val);
     do {
-      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(mm) = m;
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(mm) = m;
       mxSetFieldByNumber(U_struct, 0, 3, mm);
-      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(nn) = m;
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(nn) = m;
       mxSetFieldByNumber(U_struct, 0, 4, nn);
     } while (false);
 
@@ -821,11 +839,11 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     mxSetFieldByNumber(E_struct, 0, 1, E_col_ind);
     mxSetFieldByNumber(E_struct, 0, 2, E_val);
     do {
-      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(mm) = n - m;
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(mm) = n - m;
       mxSetFieldByNumber(E_struct, 0, 3, mm);
-      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(nn) = m;
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(nn) = m;
       mxSetFieldByNumber(E_struct, 0, 4, nn);
     } while (false);
 
@@ -835,11 +853,11 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     mxSetFieldByNumber(F_struct, 0, 1, F_col_ind);
     mxSetFieldByNumber(F_struct, 0, 2, F_val);
     do {
-      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(mm) = m;
+      auto *mm = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(mm) = m;
       mxSetFieldByNumber(F_struct, 0, 3, mm);
-      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-      *(int *)mxGetData(nn) = n - m;
+      auto *nn = mxCreateUninitNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+      *(integer_type *)mxGetData(nn) = n - m;
       mxSetFieldByNumber(F_struct, 0, 4, nn);
     } while (false);
 
