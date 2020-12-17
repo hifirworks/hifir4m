@@ -29,7 +29,13 @@ end
 if length(varargin) > 5
     if ~isempty(varargin{6}); hiprec = logical(varargin{6}); end
 end
-if isempty(x0); x0 = zeros(size(b)); end
+if isempty(x0)
+    if isreal(b)
+        x0 = zeros(size(b));
+    else
+        x0 = complex(zeros(size(b)), zeros(size(b)));
+    end
+end
 % Convert to zero-based CRS
 if issparse(A); A = hilucsi4m_sp2crs(A); end
 assert(isa(A.row_ptr, 'int32'));

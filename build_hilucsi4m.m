@@ -9,9 +9,6 @@ if system('git submodule update --init hilucsi')
     fprintf(2, 'Warning! Failed to update submodule HILUCSI\n');
 end
 %}
-v = version('-release');
-r2017 = '-R2017b';
-if str2num(v(1:end-1)) < 2018; r2017 = ''; end
 for m = 1:length(mods)
     md = mods{m};
     src = fullfile(hilucsi4m_root, [md '.cpp']);
@@ -22,7 +19,7 @@ for m = 1:length(mods)
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 -fopenmp" ' ... % C++11/OpenMP compiler
         '-I' fullfile(hilucsi4m_root, 'hilucsi', 'src') ' ' ... % include
-        '-v -O ' r2017 ' -output ' mx ' ' src ...
+        '-v -O -R2018a -output ' mx ' ' src ...
         ' -lmwblas -lmwlapack' ...  % link to MATLAB Lapack/BLAS
         ' -lmwservices'];  % link to internal ioFlush
     try

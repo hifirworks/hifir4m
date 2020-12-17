@@ -17,11 +17,14 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <complex>
+
 #include "mex.h"
 
+template <class ValueType>
 static void convert_ijv2crs(const mwSize n, const mwSize nnz, const int *rows,
-                            const int *cols, const double *vs, int *rowptr,
-                            int *colind, double *vals);
+                            const int *cols, const ValueType *vs, int *rowptr,
+                            int *colind, ValueType *vals);
 
 // convert IJV format from MATLAB built-in find to CRS
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
@@ -32,25 +35,36 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nlhs != 3)
     mexErrMsgIdAndTxt("hilucsi4m:ijv2crs", "this routine requires 3 outputs");
 
-  const mwSize n   = mxGetScalar(prhs[0]);
+  const mwSize n = mxGetScalar(prhs[0]);
   const mwSize nnz = mxGetM(prhs[1]);
   if (nnz != mxGetM(prhs[2]) || nnz != mxGetM(prhs[3]))
     mexErrMsgIdAndTxt("hilucsi4m:ijv2crs", "inconsistent NNZ for IJV");
 
   plhs[0] = mxCreateNumericMatrix(n + 1, 1, mxINT32_CLASS, mxREAL);
   plhs[1] = mxCreateUninitNumericMatrix(nnz, 1, mxINT32_CLASS, mxREAL);
-  plhs[2] = mxCreateDoubleMatrix(nnz, 1, mxREAL);
+  if (mxIsComplex(prhs[3]))
+    plhs[2] = mxCreateDoubleMatrix(nnz, 1, mxCOMPLEX);
+  else
+    plhs[2] = mxCreateDoubleMatrix(nnz, 1, mxREAL);
 
   // convert
-  convert_ijv2crs(n, nnz, (const int *)mxGetData(prhs[1]),
-                  (const int *)mxGetData(prhs[2]), mxGetPr(prhs[3]),
-                  (int *)mxGetData(plhs[0]), (int *)mxGetData(plhs[1]),
-                  mxGetPr(plhs[2]));
+  if (!mxIsComplex(prhs[3]))
+    convert_ijv2crs(n, nnz, (const int *)mxGetData(prhs[1]),
+                    (const int *)mxGetData(prhs[2]), mxGetPr(prhs[3]),
+                    (int *)mxGetData(plhs[0]), (int *)mxGetData(plhs[1]),
+                    mxGetPr(plhs[2]));
+  else
+    convert_ijv2crs(n, nnz, (const int *)mxGetData(prhs[1]),
+                    (const int *)mxGetData(prhs[2]),
+                    (const std::complex<double> *)mxGetData(prhs[3]),
+                    (int *)mxGetData(plhs[0]), (int *)mxGetData(plhs[1]),
+                    (std::complex<double> *)mxGetData(plhs[2]));
 }
 
+template <class ValueType>
 static void convert_ijv2crs(const mwSize n, const mwSize nnz, const int *rows,
-                            const int *cols, const double *vs, int *rowptr,
-                            int *colind, double *vals) {
+                            const int *cols, const ValueType *vs, int *rowptr,
+                            int *colind, ValueType *vals) {
   // handle Fortran indices
   for (mwSize i(0); i < nnz; ++i)
     ++rowptr[rows[i]];  // implicit +1 per Fortran index
@@ -59,8 +73,8 @@ static void convert_ijv2crs(const mwSize n, const mwSize nnz, const int *rows,
   --rowptr;
   for (mwSize i(0); i < nnz; ++i) {
     const auto idx = rowptr[rows[i]];
-    vals[idx]      = vs[i];
-    colind[idx]    = cols[i] - 1;
+    vals[idx] = vs[i];
+    colind[idx] = cols[i] - 1;
     ++rowptr[rows[i]];
   }
   // revert rowptr (notice that the address has been shiftted leftward by 1)

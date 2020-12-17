@@ -16,6 +16,7 @@ classdef HILUCSI
             % Syntax:
             %   hl = HILUCSI
             %   hl = HILUCSI(true)
+            %   hl = HILUCSI(___, true)
             %
             % Description:
             %   hl = HILUCSI simpily constructs an instance without mixed
@@ -32,6 +33,12 @@ classdef HILUCSI
             %
             % See Also: ID
             flag = obj.dbase.is_mixed;
+        end
+        function flag = is_real(obj)
+            %IS_REAL - Check if the HILUCSI instance is real arithmetic
+            %
+            % See Also: ID
+            flag = obj.dbase.is_real;
         end
         function id_ = id(obj)
             %ID - Get the ID tag of the database
