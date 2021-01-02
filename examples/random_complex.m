@@ -16,6 +16,9 @@ h = HILUCSI(is_mixed, is_complex);
 %% Factorize A
 [tt, info] = h.factorize(A);
 disp(info);
+% test solve with 2 RHS
+X = h.m_solve2([b b]);
+assert(norm(X(:,1)-X(:,2))<=1e-12);
 
 %% Solve for x=A\b
 [x, flag] = h.fgmres(A, b);
