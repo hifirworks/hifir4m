@@ -26,6 +26,7 @@ enum {
   HILUCSI4M_KSP_SOLVE = HILUCSI4M_M_SOLVE + 1,     ///< KSP solve
   HILUCSI4M_KSP_NULL = HILUCSI4M_KSP_SOLVE + 1,    ///< KSP for left null
   HILUCSI4M_EXPORT_DATA = HILUCSI4M_KSP_NULL + 1,  ///< export data
+  HILUCSI4M_M_SOLVE2 = HILUCSI4M_EXPORT_DATA + 1,  ///< solve 2 RHS
 };
 }  // namespace hilucsi4m
 
@@ -250,6 +251,25 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                       : hilucsi4m::M_solve<false, complex_t>(
                             id, prhs[3], prhs[4], prhs[5], prhs[2], N, plhs[0]);
     }
+    if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
+    return;
+  }  // end M solve
+
+  // M solve
+  if (action == hilucsi4m::HILUCSI4M_M_SOLVE2) {
+    // act, dbase, b
+    if (nrhs < 3)
+      mexErrMsgIdAndTxt("hilucsi4m:mexgateway:m_solve",
+                        "Accessing inv(M) requires 3 inputs");
+    double tt;
+    plhs[0] = mxDuplicateArray(prhs[2]);
+    if (is_real)
+      tt = is_mixed ? hilucsi4m::M_solve2<true>(id, prhs[2], plhs[0])
+                    : hilucsi4m::M_solve2<false>(id, prhs[2], plhs[0]);
+    else
+      tt = is_mixed
+               ? hilucsi4m::M_solve2<true, complex_t>(id, prhs[2], plhs[0])
+               : hilucsi4m::M_solve2<false, complex_t>(id, prhs[2], plhs[0]);
     if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
     return;
   }  // end M solve

@@ -21,6 +21,7 @@
 #define HILUCSI4M_HPP_
 
 #include <algorithm>
+#include <array>
 #include <complex>
 #include <exception>
 #include <memory>
@@ -440,7 +441,47 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
   return timer.time();  // give M solve time to the user
 }
 
+/**
+ * @brief Accessing inv(M) with 2 RHS (for complex conjugate pair)
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
+ * @param[in] id ID tag of the database
+ * @param[in] rhs right-hand side vector (nx2)
+ * @param[out] lhs left-hand side result, i.e., lhs=inv(A)*rhs (nx2)
+ * @return double overhead-free wall-clock time
+ */
+template <bool IsMixed, class ValueType = double>
+inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs) {
+  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+
+  if (!data->M)
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve2:emptyM", "M has not yet factorized");
+
+  if (mxGetM(lhs) != 2u || mxGetM(rhs) != 2u)
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve2:badRhsSize",
+                      "rhs/lhs must be 2-by-n");
+  if (mxGetN(rhs) != mxGetN(lhs) || mxGetN(rhs) != data->M->nrows())
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve2:badRhsSize",
+                      "rhs size does not agree with lhs or M");
+
+  using array_t = hif::Array<std::array<ValueType, 2>>;
+  array_t b(data->M->nrows(), (std::array<ValueType, 2> *)mxGetData(rhs), true),
+      x(data->M->nrows(), (std::array<ValueType, 2> *)mxGetData(lhs), true);
+  hif::DefaultTimer timer;
+  timer.start();
+  try {
+    data->M->solve_mrhs(b, x);
+  } catch (const std::exception &e) {
+    mexErrMsgIdAndTxt("hilucsi4m:M_solve:failedSolve",
+                      "M_solve failed with message:\n%s", e.what());
+  }
+  timer.finish();
+  return timer.time();  // give M solve time to the user
+}
+
 // M solve with inner iteration
+
 /**
  * @brief Factorize an HILUCSI instance
  *
