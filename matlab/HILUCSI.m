@@ -72,6 +72,13 @@ classdef HILUCSI
             [varargout{1:nargout}] = hilucsi4m_m_solve(obj.dbase, ...
                 varargin{:});
         end
+        function varargout = m_solve2(obj, varargin)
+            %M_SOLVE2 - Accessing inv(M)
+            %
+            % See Also: HILUCSI4M_M_SOLVE2, FACTORIZE
+            [varargout{1:nargout}] = hilucsi4m_m_solve2(obj.dbase, ...
+                varargin{:});
+        end
         function varargout = fgmres(obj, A, b, varargin)
             %FGMRES - Solving a system with FGMRES
             %
