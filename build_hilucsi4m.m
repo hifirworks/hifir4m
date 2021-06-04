@@ -1,24 +1,24 @@
-function build_hilucsi4m(force)
-% script for building hilucsi4m
+function build_hifir4m(force)
+% script for building HIFIR4M
 
 if nargin < 1; force = false; end
-mods = {'mex/hilucsi4m_mex', ...
-    'matlab/private/hilucsi4m_ijv2crs'};
+mods = {'mex/hifir4m_mex', ...
+    'matlab/private/hifir4m_ijv2crs'};
 %{
-if system('git submodule update --init hilucsi')
-    fprintf(2, 'Warning! Failed to update submodule HILUCSI\n');
+if system('git submodule update --init hifir')
+    fprintf(2, 'Warning! Failed to update submodule HIFIR\n');
 end
 %}
 for m = 1:length(mods)
     md = mods{m};
-    src = fullfile(hilucsi4m_root, [md '.cpp']);
-    mx = fullfile(hilucsi4m_root, [md '.' mexext]);
+    src = fullfile(hifir4m_root, [md '.cpp']);
+    mx = fullfile(hifir4m_root, [md '.' mexext]);
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
     % assume GCC openmp
     cmd = ['mex ' ...
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 -ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
-        '-I' fullfile(hilucsi4m_root, 'hilucsi', 'src') ' ' ... % include
+        '-I' fullfile(hifir4m_root, 'hifir', 'src') ' ' ... % include
         '-v -O -R2018a -output ' mx ' ' src ...
         ' -lmwblas -lmwlapack' ...  % link to MATLAB Lapack/BLAS
         ' -lmwservices'];  % link to internal ioFlush
@@ -26,7 +26,7 @@ for m = 1:length(mods)
         disp(cmd);
         eval(cmd);
     catch
-        error('Error during compilcation with err %s.', lasterr);
+        error('Error during compilcation with error %s.', lasterr);
     end
 end
 end
