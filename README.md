@@ -1,6 +1,6 @@
-# HILUCSI MATLAB Interface #
+# HIFIR MATLAB Interface #
 
-`hilucsi4m` is a MATLAB interface for HILUCSI preconditioner, plus a right-preconditioned GMRES (FGMRES) solver. HILUCSI is a *multi-level ILU* (MLILU) preconditioner developed by NumGeom research group at Stony Brook University.
+`hifir4m` is a MATLAB interface for HIFIR preconditioner, plus a right-preconditioned GMRES/FGMRES solvers. HIFIR is a hybrid of *multi-level ILU* (*MLILU*) and *rank-revealing QR* (*RRQR*) factorization preconditioner for ill-conditioned and singular systems, which is developed by NumGeom research group at Stony Brook University.
 
 ## Installation ##
 
@@ -10,7 +10,7 @@ Copy this project to your preferred location, then under MATLAB command window, 
 >> startup
 ```
 
-It will try to fetch the C++ kernel (if needed) from BitBucket repository, then build the *mex* kernels (again, if needed). It is worth noting that HILUCSI4M links to MATLAB built-in BLAS/LAPACK, thanks to its flexible template and header-only design.
+It will try to fetch the C++ kernel (if needed) from BitBucket repository, then build the *mex* kernels (again, if needed). It is worth noting that HIFIR4M links to MATLAB built-in BLAS/LAPACK, thanks to its flexible template and header-only design.
 
 ## Usage ##
 
@@ -18,8 +18,8 @@ Look at the random matrix example under `examples` directory. Also, use `help` c
 
 ## Copying ##
 
-This project inherits the GLPv3+ license from HILUCSI, for more, check `LICENSE` file.
+This project inherits the GLPv3+ license from HIFIR, for more, check `LICENSE` file.
 
 ## Contact(s) ##
 
-Qiao Chen, <qiao.chen@stonybrook.edu>
+Qiao Chen, <qiao.chen@stonybrook.edu>, <benechiao@gmail.com>
