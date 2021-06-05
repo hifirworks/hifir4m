@@ -549,6 +549,50 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
   return timer.time();  // give M solve time to the user
 }
 
+// Multilevel matrix-vector multiplication
+
+/**
+ * @brief Perform M*x
+ *
+ * @tparam IsMixed Wether or not the database uses mixed precision
+ * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
+ * @param[in] id ID tag of the database
+ * @param[in] rhs right-hand side vector
+ * @param[out] lhs left-hand side result, i.e., lhs=M*rhs
+ * @param[in] trans (optional) transpose/Hermitian flag, default is \a false
+ * @param[in] r (optional) rank for the final Schur complement
+ * @return double overhead-free wall-clock time
+ */
+template <bool IsMixed, class ValueType = double>
+inline double M_multiply(int id, const mxArray *rhs, mxArray *lhs,
+                         const bool trans = false, const std::size_t r = 0u) {
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
+
+  if (!data->M)
+    mexErrMsgIdAndTxt("hifir4m:M_multiply:emptyM", "M has not yet factorized");
+
+  if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
+    mexErrMsgIdAndTxt("hifir4m:M_multiply:badRhsSize",
+                      "rhs/lhs must be column vector");
+  if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows())
+    mexErrMsgIdAndTxt("hifir4m:M_multiply:badRhsSize",
+                      "rhs size does not agree with lhs or M");
+
+  using array_t = hif::Array<ValueType>;
+  array_t b(data->M->nrows(), (ValueType *)mxGetData(rhs), true),
+      x(data->M->nrows(), (ValueType *)mxGetData(lhs), true);
+  hif::DefaultTimer timer;
+  timer.start();
+  try {
+    data->M->mmultiply(b, x, trans, r);
+  } catch (const std::exception &e) {
+    mexErrMsgIdAndTxt("hifir4m:M_multiply:failedSolve",
+                      "M_multiply failed with message:\n%s", e.what());
+  }
+  timer.finish();
+  return timer.time();  // give M solve time to the user
+}
+
 // KSP solve
 
 /**

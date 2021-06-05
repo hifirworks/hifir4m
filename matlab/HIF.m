@@ -79,6 +79,13 @@ classdef HIF
             [varargout{1:nargout}] = hifir4m_hifir(obj.dbase, ...
                 varargin{:});
         end
+        function varargout = mmultiply(obj, varargin)
+            %MMULTIPLY - Perform M*x
+            %
+            % See Also: HIFIR4M_MMULTIPLY, FACTORIZE
+            [varargout{1:nargout}] = hifir4m_mmultiply(obj.dbase, ...
+                varargin{:});
+        end
         function varargout = gmres(obj, A, b, varargin)
             %GMRES - Solving a system with GMRES
             %

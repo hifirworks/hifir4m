@@ -27,6 +27,7 @@ enum {
   HIFIR4M_KSP_NULL = HIFIR4M_KSP_SOLVE + 1,    ///< KSP for left null
   HIFIR4M_EXPORT_DATA = HIFIR4M_KSP_NULL + 1,  ///< export data
   HIFIR4M_M_SOLVE2 = HIFIR4M_EXPORT_DATA + 1,  ///< solve 2 RHS
+  HIFIR4M_M_MULTIPLY = HIFIR4M_M_SOLVE2 + 1,   ///< matrix vector
 };
 }  // namespace hifir4m
 
@@ -255,6 +256,29 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
     return;
   }  // end M solve
+
+  // M solve
+  if (action == hifir4m::HIFIR4M_M_MULTIPLY) {
+    // act, dbase, b, (trans), (r)
+    if (nrhs < 3)
+      mexErrMsgIdAndTxt("hifir4m:mexgateway:m_multiply",
+                        "M*x requires 3 inputs");
+    double tt;
+    plhs[0] = mxDuplicateArray(prhs[2]);
+    const bool trans = nrhs <= 3 ? false : (bool)mxGetScalar(prhs[3]);
+    const std::size_t r = nrhs <= 4 ? 0u : (std::size_t)mxGetScalar(prhs[4]);
+    if (is_real)
+      tt = is_mixed
+               ? hifir4m::M_multiply<true>(id, prhs[2], plhs[0], trans, r)
+               : hifir4m::M_multiply<false>(id, prhs[2], plhs[0], trans, r);
+    else
+      tt = is_mixed ? hifir4m::M_multiply<true, complex_t>(id, prhs[2], plhs[0],
+                                                           trans, r)
+                    : hifir4m::M_multiply<false, complex_t>(id, prhs[2],
+                                                            plhs[0], trans, r);
+    if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
+    return;
+  }  // end multiply
 
   // M solve
   if (action == hifir4m::HIFIR4M_M_SOLVE2) {
