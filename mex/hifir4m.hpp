@@ -1,5 +1,5 @@
 /*
-                This file is part of HILUCSI4M project
+                This file is part of HIFIR4M project
 
     Copyright (C) 2019 NumGeom Group at Stony Brook University
 
@@ -17,8 +17,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef HILUCSI4M_HPP_
-#define HILUCSI4M_HPP_
+#ifndef HIFIR4M_HPP_
+#define HIFIR4M_HPP_
 
 #include <algorithm>
 #include <array>
@@ -30,14 +30,14 @@
 #include <type_traits>
 #include <vector>
 
-#include "hilucsi4m_config.hpp"
+#include "hifir4m_config.hpp"
 // avoid sorting!
 #include "HIF.hpp"
 
-namespace hilucsi4m {
+namespace hifir4m {
 // structure of preconditioner and solver
 
-#ifdef HILIUCSI4M_USE_32INT
+#ifdef HIFIR4M_USE_32INT
 typedef int integer_type;
 #else
 typedef mwSignedIndex integer_type;
@@ -64,7 +64,7 @@ class OperatorUpdateSolver
                     array_type &x0) const {
     // step 1: (2*I-A*inv(M)) * b
     _base::solve(b, _v);
-    hif::mt::mv_nt(A, _v, x0);
+    hif::mt::multiply_nt(A, _v, x0);
     const size_type n = _v.size();
     for (size_type i(0); i < n; ++i) _v[i] = 2.0 * b[i] - x0[i];
     // step 2: inv(M)*v
@@ -94,13 +94,12 @@ class MexNspFilter : public hif::NspFilter {
   virtual void user_filter(void *x, const std::size_t n,
                            const char dtype) const override {
     if (dtype != 'd' || dtype != 'z')
-      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:badDtype",
+      mexErrMsgIdAndTxt("hifir4m:nspFilter:badDtype",
                         "only double precision is supported");
     if (f_name == "#unknown#")
-      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:unknownFunc",
-                        "unset function name");
+      mexErrMsgIdAndTxt("hifir4m:nspFilter:unknownFunc", "unset function name");
     if (f_name == "feval" && !f_handle)
-      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:missingHandler",
+      mexErrMsgIdAndTxt("hifir4m:nspFilter:missingHandler",
                         "missing function handle");
     if (!x_in) {
       if (dtype == 'd')
@@ -109,7 +108,7 @@ class MexNspFilter : public hif::NspFilter {
         x_in = mxCreateDoubleMatrix(n, 1, mxCOMPLEX);
     }
     if (n != mxGetM(x_in))
-      mexErrMsgIdAndTxt("hilucsi4m:nspFilter:badShape", "unmatched sizes");
+      mexErrMsgIdAndTxt("hifir4m:nspFilter:badShape", "unmatched sizes");
     // copy x to buffer
     if (dtype == 'd')
       std::copy_n(reinterpret_cast<const double *>(x), n, mxGetPr(x_in));
@@ -131,7 +130,7 @@ class MexNspFilter : public hif::NspFilter {
     mxArray *lhs;
     // call MATLAB directly
     mexCallMATLAB(1, &lhs, nrhs, rhs, f_name.c_str());
-    // copy back to data to HILUCSI
+    // copy back to data to HIFIR
     if (dtype == 'd')
       std::copy_n(mxGetPr(lhs), n, reinterpret_cast<double *>(x));
     else
@@ -151,7 +150,7 @@ class MexNspFilter : public hif::NspFilter {
  * @tparam IsMixed Flag indicate if or not the database uses mixed precision
  */
 template <bool IsMixed, class ValueType = double>
-struct HILUCSI4M_Database {
+struct HIFIR4M_Database {
  private:
   using _value_type = typename std::conditional<IsMixed, ValueType, void>::type;
   static constexpr bool _IS_REAL = std::is_floating_point<ValueType>::value;
@@ -169,7 +168,7 @@ struct HILUCSI4M_Database {
   ///< preconditioner type
   using ksp_factory_t = hif::ksp::KSPFactory<prec_t, _value_type>;
   ///< KSP factory type
-  using solver_t = typename ksp_factory_t::fgmres;           ///< FMGRES type
+  using solver_t = typename ksp_factory_t::gmres;            ///< FMGRES type
   using null_solver_t = typename ksp_factory_t::gmres_null;  ///< left null
   using null_hi_solver_t = typename ksp_factory_t::gmres_null_hi;  ///< null hi
   using update_operator_t = OperatorUpdateSolver<prec_t, _value_type>;
@@ -186,8 +185,8 @@ struct HILUCSI4M_Database {
 
 // // structure of preconditioner with mixed precision
 // template <>
-// struct HILUCSI4M_Database<true> {
-//   using prec_t        = hif::HILUCSI<float, int>;  ///< preconditioner
+// struct HIFIR4M_Database<true> {
+//   using prec_t        = hif::HIFIR<float, int>;  ///< preconditioner
 //   type using ksp_factory_t = hif::ksp::KSPFactory<prec_t, double>;
 //   ///< KSP factory type
 //   using solver_t = ksp_factory_t::fgmres;
@@ -199,11 +198,11 @@ struct HILUCSI4M_Database {
 // };
 
 enum {
-  HILUCSI4M_CREATE = 0,   ///< create database
-  HILUCSI4M_GET = 1,      ///< get database
-  HILUCSI4M_CLEAR = 2,    ///< clear database
-  HILUCSI4M_CHECK = 3,    ///< check emptyness
-  HILUCSI4M_DESTROY = 4,  ///< destroy database
+  HIFIR4M_CREATE = 0,   ///< create database
+  HIFIR4M_GET = 1,      ///< get database
+  HIFIR4M_CLEAR = 2,    ///< clear database
+  HIFIR4M_CHECK = 3,    ///< check emptyness
+  HIFIR4M_DESTROY = 4,  ///< destroy database
 };
 
 /**
@@ -216,42 +215,42 @@ enum {
  * @return A pointer of to the database is returned
  */
 template <bool IsMixed, class ValueType = double>
-inline HILUCSI4M_Database<IsMixed, ValueType> *database(const int action,
-                                                        int &id) {
+inline HIFIR4M_Database<IsMixed, ValueType> *database(const int action,
+                                                      int &id) {
   // create database
-  using data_t = HILUCSI4M_Database<IsMixed, ValueType>;
+  using data_t = HIFIR4M_Database<IsMixed, ValueType>;
   static std::vector<std::shared_ptr<data_t>> pool;
 
   switch (action) {
-    case HILUCSI4M_CREATE: {
+    case HIFIR4M_CREATE: {
       id = pool.size();
       pool.emplace_back(new data_t);
       return pool.back().get();
     } break;
-    case HILUCSI4M_GET: {
+    case HIFIR4M_GET: {
       // query database
       if (id < 0 || id >= (int)pool.size())
-        mexErrMsgIdAndTxt("hilucsi4m:database:getInvalidID",
+        mexErrMsgIdAndTxt("hifir4m:database:getInvalidID",
                           "%d is an invalid database ID", id);
       if (!pool[id]) pool[id] = std::make_shared<data_t>();
       return pool[id].get();
     } break;
-    case HILUCSI4M_CLEAR: {
+    case HIFIR4M_CLEAR: {
       if (id < 0 || id >= (int)pool.size())
-        mexErrMsgIdAndTxt("hilucsi4m:database:getInvalidID",
+        mexErrMsgIdAndTxt("hifir4m:database:getInvalidID",
                           "%d is an invalid database ID", id);
       if (!pool[id])
-        mexErrMsgIdAndTxt("hilucsi4m:database:getDeadID",
+        mexErrMsgIdAndTxt("hifir4m:database:getDeadID",
                           "%d database has been destroyed", id);
       if (pool[id]->M) pool[id]->M->clear();
       return pool[id].get();
     } break;
     default: {
-      if (action != HILUCSI4M_DESTROY)
-        mexErrMsgIdAndTxt("hilucsi4m:database:badAction",
+      if (action != HIFIR4M_DESTROY)
+        mexErrMsgIdAndTxt("hifir4m:database:badAction",
                           "%d is an invalid action for database", action);
       if (id < 0 || id >= (int)pool.size())
-        mexErrMsgIdAndTxt("hilucsi4m:database:destroyInvalidID",
+        mexErrMsgIdAndTxt("hifir4m:database:destroyInvalidID",
                           "%d is an invalid database ID", id);
       pool[id].reset();
       return nullptr;
@@ -263,7 +262,7 @@ inline HILUCSI4M_Database<IsMixed, ValueType> *database(const int action,
  * @brief Create a opt from a MATLAB structure
  *
  * @param[in] rhs MATLAB mex array
- * @return hif::Options control parameters for HILUCSI
+ * @return hif::Options control parameters for HIFIR
  *
  * @note This routine requires the field ordering in the matlab structure
  *       follows the sames order as how the attributes appear in the C++
@@ -271,7 +270,7 @@ inline HILUCSI4M_Database<IsMixed, ValueType> *database(const int action,
  */
 inline hif::Options create_opt_from_struct(const mxArray *rhs) {
   if (!mxIsStruct(rhs))
-    mexErrMsgIdAndTxt("hilucsi4m:options:badInput", "input must be structure");
+    mexErrMsgIdAndTxt("hifir4m:options:badInput", "input must be structure");
   hif::Options opt = hif::get_default_options();
   // WARNING! The structure from MATLAB should be initialized by a structured
   // routine with the following fields that are accessed. In addition, the
@@ -297,8 +296,14 @@ inline hif::Options create_opt_from_struct(const mxArray *rhs) {
   opt.pre_scale = get_field(15);
   opt.symm_pre_lvls = get_field(16);
   opt.threads = get_field(17);
-  opt.fat_schur_1st = get_field(18);
-  opt.rrqr_cond = get_field(19);
+  opt.mumps_blr = get_field(18);
+  opt.fat_schur_1st = get_field(19);
+  opt.rrqr_cond = get_field(20);
+  opt.pivot = get_field(21);
+  opt.gamma = get_field(22);
+  opt.beta = get_field(23);
+  opt.is_symm = get_field(24);
+  opt.no_pre = get_field(25);
   return opt;
 }
 
@@ -356,7 +361,7 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
 // factorization
 
 /**
- * @brief Factorize an HILUCSI instance
+ * @brief Factorize an HIFIR instance
  *
  * @tparam IsMixed Wether or not the database uses mixed precision
  * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
@@ -370,17 +375,17 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
 template <bool IsMixed, class ValueType = double>
 inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
                         const mxArray *val, const mxArray *opt) {
-  using data_t = HILUCSI4M_Database<IsMixed, ValueType>;
+  using data_t = HIFIR4M_Database<IsMixed, ValueType>;
 
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hilucsi4m:factorize"), rowptr, colind,
-                         val, &rptr, &cptr, &vptr, &n);
+  convert_crs_mx2pointer(std::string("hifir4m:factorize"), rowptr, colind, val,
+                         &rptr, &cptr, &vptr, &n);
 
-  // create csr wrapper from HILUCSI
+  // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   // get options
   const auto opts = create_opt_from_struct(opt);
@@ -390,10 +395,10 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
   hif::DefaultTimer timer;
   timer.start();
   try {
-    data->M->factorize(A, 0, opts);
+    data->M->factorize(A, opts);
   } catch (const std::exception &e) {
     data->M->clear();
-    mexErrMsgIdAndTxt("hilucsi4m:factorize:failedFac",
+    mexErrMsgIdAndTxt("hifir4m:factorize:failedFac",
                       "factorization failed with message:\n%s", e.what());
   }
   timer.finish();
@@ -410,20 +415,23 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
  * @param[in] id ID tag of the database
  * @param[in] rhs right-hand side vector
  * @param[out] lhs left-hand side result, i.e., lhs=inv(A)*rhs
+ * @param[in] trans (optional) transpose/Hermitian flag, default is \a false
+ * @param[in] r (optional) rank for the final Schur complement
  * @return double overhead-free wall-clock time
  */
 template <bool IsMixed, class ValueType = double>
-inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+inline double M_solve(int id, const mxArray *rhs, mxArray *lhs,
+                      const bool trans = false, const std::size_t r = 0u) {
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
   if (!data->M)
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve:emptyM", "M has not yet factorized");
+    mexErrMsgIdAndTxt("hifir4m:M_solve:emptyM", "M has not yet factorized");
 
   if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:M_solve:badRhsSize",
                       "rhs/lhs must be column vector");
   if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows())
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:M_solve:badRhsSize",
                       "rhs size does not agree with lhs or M");
 
   using array_t = hif::Array<ValueType>;
@@ -432,9 +440,9 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
   hif::DefaultTimer timer;
   timer.start();
   try {
-    data->M->solve(b, x);
+    data->M->solve(b, x, trans, r);
   } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve:failedSolve",
+    mexErrMsgIdAndTxt("hifir4m:M_solve:failedSolve",
                       "M_solve failed with message:\n%s", e.what());
   }
   timer.finish();
@@ -449,20 +457,21 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs) {
  * @param[in] id ID tag of the database
  * @param[in] rhs right-hand side vector (nx2)
  * @param[out] lhs left-hand side result, i.e., lhs=inv(A)*rhs (nx2)
+ * @param[in] r (optional) rank for the final Schur complement
  * @return double overhead-free wall-clock time
  */
 template <bool IsMixed, class ValueType = double>
-inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs) {
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs,
+                       const std::size_t r = 0u) {
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
   if (!data->M)
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve2:emptyM", "M has not yet factorized");
+    mexErrMsgIdAndTxt("hifir4m:M_solve2:emptyM", "M has not yet factorized");
 
   if (mxGetM(lhs) != 2u || mxGetM(rhs) != 2u)
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve2:badRhsSize",
-                      "rhs/lhs must be 2-by-n");
+    mexErrMsgIdAndTxt("hifir4m:M_solve2:badRhsSize", "rhs/lhs must be 2-by-n");
   if (mxGetN(rhs) != mxGetN(lhs) || mxGetN(rhs) != data->M->nrows())
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve2:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:M_solve2:badRhsSize",
                       "rhs size does not agree with lhs or M");
 
   using array_t = hif::Array<std::array<ValueType, 2>>;
@@ -471,9 +480,9 @@ inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs) {
   hif::DefaultTimer timer;
   timer.start();
   try {
-    data->M->solve_mrhs(b, x);
+    data->M->solve_mrhs(b, x, r);
   } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve:failedSolve",
+    mexErrMsgIdAndTxt("hifir4m:M_solve:failedSolve",
                       "M_solve failed with message:\n%s", e.what());
   }
   timer.finish();
@@ -483,7 +492,7 @@ inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs) {
 // M solve with inner iteration
 
 /**
- * @brief Factorize an HILUCSI instance
+ * @brief Factorize an HIFIR instance
  *
  * @tparam IsMixed Wether or not the database uses mixed precision
  * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
@@ -494,43 +503,46 @@ inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs) {
  * @param[in] rhs right-hand side vector
  * @param[in] N inner iteration steps
  * @param[out] lhs left-hand side result
+ * @param[in] trans (optional) transpose/Hermitian flag, default is \a false
+ * @param[in] r (optional) rank for the final Schur complement
  * @return overhead-free factorization wall-clock time
  */
 template <bool IsMixed, class ValueType = double>
 inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
                       const mxArray *val, const mxArray *rhs, const int N,
-                      mxArray *lhs) {
+                      mxArray *lhs, const bool trans = false,
+                      const std::size_t r = static_cast<std::size_t>(-1)) {
   if (N < 2) return M_solve<IsMixed, ValueType>(id, rhs, lhs);  // quick return
 
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
   if (!data->M)
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:emptyM",
+    mexErrMsgIdAndTxt("hifir4m:M_solve_inner:emptyM",
                       "M has not yet factorized");
 
   if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:M_solve_inner:badRhsSize",
                       "rhs/lhs must be column vector");
   if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows())
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:M_solve_inner:badRhsSize",
                       "rhs size does not agree with lhs or M");
 
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hilucsi4m:M_solve_inner"), rowptr, colind,
+  convert_crs_mx2pointer(std::string("hifir4m:M_solve_inner"), rowptr, colind,
                          val, &rptr, &cptr, &vptr, &n);
 
-  // create csr wrapper from HILUCSI
+  // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   using array_t = hif::Array<ValueType>;
   array_t b(data->M->nrows(), (ValueType *)mxGetData(rhs), true),
       x(data->M->nrows(), (ValueType *)mxGetData(lhs), true);
   hif::DefaultTimer timer;
   try {
-    data->M->solve(A, b, N, x);  // call inner iteration kernel
+    data->M->hifir(A, b, N, x, trans, r);  // call inner iteration kernel
   } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hilucsi4m:M_solve_inner:failedSolve",
+    mexErrMsgIdAndTxt("hifir4m:M_solve_inner:failedSolve",
                       "M_solve_inner failed with message:\n%s", e.what());
   }
   timer.finish();
@@ -564,32 +576,32 @@ inline std::tuple<int, int, double, double> KSP_solve(
     const mxArray *val, const mxArray *rhs, mxArray *lhs,
     const bool update = false, const int *cst_nsp = nullptr,
     const char *fname = nullptr, const mxArray *fhdl = nullptr) {
-  using ksp_t = typename HILUCSI4M_Database<IsMixed, ValueType>::solver_t;
+  using ksp_t = typename HIFIR4M_Database<IsMixed, ValueType>::solver_t;
 
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
   if (!data->M)
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:emptyM", "M has not yet factorized");
+    mexErrMsgIdAndTxt("hifir4m:KSP_solve:emptyM", "M has not yet factorized");
 
   if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:KSP_solve:badRhsSize",
                       "rhs/lhs must be column vector");
   // get matrix
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hilucsi4m:KSP_solve"), rowptr, colind,
-                         val, &rptr, &cptr, &vptr, &n);
+  convert_crs_mx2pointer(std::string("hifir4m:KSP_solve"), rowptr, colind, val,
+                         &rptr, &cptr, &vptr, &n);
 
   if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows() ||
       data->M->nrows() != n)
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:KSP_solve:badRhsSize",
                       "rhs size does not agree with lhs, M or A");
 
   data->ksp.reset(new ksp_t(data->M));
   auto &ksp = *data->ksp;
   ksp.set_M(data->M);  // setup preconditioner
 
-  // create csr wrapper from HILUCSI
+  // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   // arrays
   using array_t = hif::Array<ValueType>;
@@ -614,7 +626,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
     data->M->nsp.reset(new MexNspFilter());
     MexNspFilter *mex_nsp = dynamic_cast<MexNspFilter *>(data->M->nsp.get());
     if (!mex_nsp)
-      mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badNsp",
+      mexErrMsgIdAndTxt("hifir4m:KSP_solve:badNsp",
                         "failed to dynamic_cast nullspace filter");
     mex_nsp->f_name = fname;
     if (fhdl) mex_nsp->f_handle = const_cast<mxArray *>(fhdl);
@@ -631,12 +643,12 @@ inline std::tuple<int, int, double, double> KSP_solve(
                                         true /* always with guess */, verbose);
     else {
       const auto M =
-          typename HILUCSI4M_Database<IsMixed, ValueType>::update_operator_t(
+          typename HIFIR4M_Database<IsMixed, ValueType>::update_operator_t(
               *data->M);
       std::tie(flag, iters) = ksp.solve_user(A, M, b, x, true, verbose);
     }
   } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
+    mexErrMsgIdAndTxt("hifir4m:KSP_solve:failedSolve",
                       "KSP_solve failed with message:\n%s", e.what());
   }
   timer.finish();
@@ -671,31 +683,31 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs) {
-  using ksp_t = typename HILUCSI4M_Database<IsMixed, ValueType>::null_solver_t;
+  using ksp_t = typename HIFIR4M_Database<IsMixed, ValueType>::null_solver_t;
   using ksp_hi_t =
-      typename HILUCSI4M_Database<IsMixed, ValueType>::null_hi_solver_t;
+      typename HIFIR4M_Database<IsMixed, ValueType>::null_hi_solver_t;
 
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
   if (!data->M)
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_null_solve:emptyM",
+    mexErrMsgIdAndTxt("hifir4m:KSP_null_solve:emptyM",
                       "M has not yet factorized");
 
   if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_null_solve:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:KSP_null_solve:badRhsSize",
                       "rhs/lhs must be column vector");
   // get matrix
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hilucsi4m:KSP_solve"), rowptr, colind,
-                         val, &rptr, &cptr, &vptr, &n);
+  convert_crs_mx2pointer(std::string("hifir4m:KSP_solve"), rowptr, colind, val,
+                         &rptr, &cptr, &vptr, &n);
 
   if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows() ||
       data->M->nrows() != n)
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:badRhsSize",
+    mexErrMsgIdAndTxt("hifir4m:KSP_solve:badRhsSize",
                       "rhs size does not agree with lhs, M or A");
 
-  // create csr wrapper from HILUCSI
+  // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   // arrays
   using array_t = hif::Array<ValueType>;
@@ -730,7 +742,7 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
       std::tie(flag, iters) = data->ksp_null_hi->solve(
           A, b, x, hif::ksp::TRADITION, true /* always with guess */, verbose);
   } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hilucsi4m:KSP_solve:failedSolve",
+    mexErrMsgIdAndTxt("hifir4m:KSP_solve:failedSolve",
                       "KSP_solve failed with message:\n%s", e.what());
   }
   timer.finish();
@@ -742,7 +754,7 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
 }
 
 /**
- * @brief Extract the internal data from HILUCSI
+ * @brief Extract the internal data from HIFIR
  *
  * @tparam IsMixed Wether or not the database uses mixed precision
  * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
@@ -752,14 +764,14 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
  */
 template <bool IsMixed, class ValueType = double>
 inline void M_export(int id, const bool destroy, mxArray **hilu) {
-  using data_t = HILUCSI4M_Database<IsMixed, ValueType>;
+  using data_t = HIFIR4M_Database<IsMixed, ValueType>;
   using crs_t = typename data_t::prec_t::crs_type;
   using value_t = typename crs_t::value_type;
   static constexpr mxComplexity DTYPE =
       std::is_floating_point<ValueType>::value ? mxREAL : mxCOMPLEX;
   using scalar_type = typename hif::ValueTypeTrait<value_t>::value_type;
 
-  auto data = database<IsMixed, ValueType>(HILUCSI4M_GET, id);
+  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
   if (!data || !data->M || data->M->empty()) {
     // empty multi-level M
     *hilu = mxCreateCellMatrix(0, 0);
@@ -768,7 +780,7 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
 
   if (!data->M->can_export()) {
     mexWarnMsgIdAndTxt(
-        "hilucsi4m:M_export:cannot_export",
+        "hifir4m:M_export:cannot_export",
         "Exporting data is not allowed. 1) compiled with sparse last level, or "
         "2) using interval-based data stuctures for L and U");
     *hilu = mxCreateCellMatrix(0, 0);
@@ -971,6 +983,6 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     }
   }
 }
-}  // namespace hilucsi4m
+}  // namespace hifir4m
 
-#endif  // HILUCSI4M_HPP_
+#endif  // HIFIR4M_HPP_

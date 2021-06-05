@@ -1,5 +1,5 @@
 /*
-                This file is part of HILUCSI4M project
+                This file is part of HIFIR4M project
 
     Copyright (C) 2019 NumGeom Group at Stony Brook University
 
@@ -17,10 +17,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// WARNING! This file must be included before including HILUCSI.hpp
+// WARNING! This file must be included before including HIFIR.hpp
 
-#ifndef HILUCSI4M_CONFIG_HPP_
-#define HILUCSI4M_CONFIG_HPP_
+#ifndef HIFIR4M_CONFIG_HPP_
+#define HIFIR4M_CONFIG_HPP_
 
 // mex
 #include "mex.h"
@@ -66,4 +66,4 @@ extern bool ioFlush(void);
 #endif
 #define HIF_LAPACK_INT mwSignedIndex
 
-#endif  // HILUCSI4M_CONFIG_HPP_
+#endif  // HIFIR4M_CONFIG_HPP_
