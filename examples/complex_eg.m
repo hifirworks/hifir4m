@@ -1,7 +1,3 @@
-%{
-This example uses a density 0.5 of 10x10 sparse matrix to show how to use
-HILUCSI4M and the FGMRES solver.
-%}
 clear;
 load('kim1.mat', 'Problem');
 is_mixed = false;
