@@ -1,30 +1,30 @@
-function varargout = hilucsi4m_factorize(dbase, A, varargin)
-%HILUCSI4M_FACTORIZE - Factorize HILUCSI preconditioner
+function varargout = hifir4m_factorize(dbase, A, varargin)
+%HIFIR4M_FACTORIZE - Factorize HIFIR preconditioner
 %
 % Syntax:
-%   hilucsi4m_factorize(dbase, A)
-%   hilucsi4m_factorize(dbase, A, opts)
-%   hilucsi4m_factorize(dbase, A, fieldName, fieldValue, ...)
-%   t = hilucsi4m_factorize(___)
-%   [t, fac_info] = hilucsi4m_factorize(___)
+%   hifir4m_factorize(dbase, A)
+%   hifir4m_factorize(dbase, A, opts)
+%   hifir4m_factorize(dbase, A, fieldName, fieldValue, ...)
+%   t = hifir4m_factorize(___)
+%   [t, fac_info] = hifir4m_factorize(___)
 %
 % Description:
-%   HILUCSI4M_FACTORIZE is the driver call for factorizing a squared sparse
-%   matrix with HILUCSI. It has the above different syntaxes, which will be
+%   HIFIR4M_FACTORIZE is the driver call for factorizing a squared sparse
+%   matrix with HIFIR. It has the above different syntaxes, which will be
 %   addresses shortly.
 %
-%   hilucsi4m_factorize(dbase, A) simply factorizes a given matrix with a
+%   hifir4m_factorize(dbase, A) simply factorizes a given matrix with a
 %   pre-constructed internal database "dbase" and a squared sparse matrix A.
 %   This syntax uses the default options.
 %
-%   hilucsi4m_factorize(dbase, A, opts) is like above but with a customized
+%   hifir4m_factorize(dbase, A, opts) is like above but with a customized
 %   option structured.
 %
-%   hilucsi4m_factorize(dbase, A, fieldName, fieldValue, ...) allows one to
+%   hifir4m_factorize(dbase, A, fieldName, fieldValue, ...) allows one to
 %   implicitly pass in parameters without explicitly dealing with an option
 %   structure.
 %
-%   [t, fac_info] = hilucsi4m_factorize(___) indicates that the function has
+%   [t, fac_info] = hifir4m_factorize(___) indicates that the function has
 %   (potentially) two outputs, where the first one *t* is the total factorizing
 %   time without MATLAB interpreter overhead. *fac_info* is a structure of
 %   some information field of interests resulting from the factorization
@@ -44,31 +44,31 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 %
 % Examples:
 %   To simply factorize a sparse matrix, we can
-%       >> dbase = hilucsi4m_initialize;
+%       >> dbase = hifir4m_initialize;
 %       >> A = sprand(10, 10, 0.5);
-%       >> hilucsi4m_factorize(dbase, A);
+%       >> hifir4m_factorize(dbase, A);
 %
 %   If you are interested in the timing
-%       >> t = hilucsi4m_factorize(dbase, A);
+%       >> t = hifir4m_factorize(dbase, A);
 %       >> disp(t);
 %
 %   Supply your own control options
-%       >> hilucsi4m_factorize(dbase, A, 'symm_pre_lvls', 2); % 2 level symm
+%       >> hifir4m_factorize(dbase, A, 'symm_pre_lvls', 2); % 2 level symm
 %
 %   Pass the matrix via MATFILE
 %       >> A = sprand(10, 10, 0.5);
 %       >> save test.mat A
 %       >> clear A
-%       >> hilucsi4m_factorize(dbase, {'test.mat', 'A'});
+%       >> hifir4m_factorize(dbase, {'test.mat', 'A'});
 %
 %   Using struct
 %       >> A.row_ptr = int32(...);
 %       >> A.col_ind = int32(...);
 %       >> A.val = ...;
-%       >> hilucsi4m_factorize(dbase, A);
+%       >> hifir4m_factorize(dbase, A);
 %
 % See Also:
-%   HILUCSI4M_INITIALIZE, HILUCSI4M_CREATE_OPTIONS, HILUCSI4M_FGMRES
+%   HIFIR4M_INITIALIZE, HIFIR4M_CREATE_PARAMS, HIFIR4M_FGMRES
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
@@ -79,20 +79,18 @@ function varargout = hilucsi4m_factorize(dbase, A, varargin)
 if iscell(A)
     assert(length(A) == 2);
     t = tic; A = getfield(load(A{1}, A{2}), A{2}); t = toc(t);
-    fprintf(1, 'HILUCSI4M factorization I/O time is %.4gs\n', t);
+    fprintf(1, 'HIFIR4M factorization I/O time is %.4gs\n', t);
 end
 if ~isempty(varargin) && isstruct(varargin{1})
     opts = varargin{1};  % ignore whatever goes after the first one
 else
-    opts = hilucsi4m_create_options(varargin{:});
+    opts = hifir4m_create_params(varargin{:});
 end
 if nargin < 3 || isempty(opts);  end
 % convert A to zero-based CRS
-if issparse(A); A = hilucsi4m_sp2crs(A); end
-assert(isa(A.row_ptr, 'int32'));
-assert(isa(A.col_ind, 'int32'));
-A = hilucsi4m_2int64(A);
-[varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_FACTORIZE, dbase, ...
+if issparse(A); A = hifir4m_sp2crs(A); end
+A = hifir4m_ensure_int(A);
+[varargout{1:nargout}] = hifir4m_mex(HIFIR4M_FACTORIZE, dbase, ...
     A.row_ptr, A.col_ind, A.val, opts);
 
 %-------------------------- END MAIN CODE -------------------------------%

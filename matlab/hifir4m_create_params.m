@@ -1,18 +1,18 @@
-function opts = hilucsi4m_create_options(varargin)
-%HILUCSI4M_CREATE_OPTIONS - Create options for HILUCSI preconditioner
+function opts = hifir4m_create_params(varargin)
+%HIFIR4M_CREATE_PARAMS - Create options for HIFIR preconditioner
 %
 % Syntax:
-%   opts = hilucsi4m_create_options
-%   opts = hilucsi4m_create_options(OptionFieldName, OptionValue)
+%   opts = hifir4m_create_params
+%   opts = hifir4m_create_params(OptionFieldName, OptionValue)
 %
 % Description:
-%   HILUCSI4M_CREATE_OPTIONS constructs the control parameters used in
-%   factorizing HILUCSI preconditioner. The parameters are well-documented
+%   HIFIR4M_CREATE_PARAMS constructs the control parameters used in
+%   factorizing HIFIR preconditioner. The parameters are well-documented
 %   in the c++ code thus omitting here.
 %
-%   opts = hilucsi4m_create_options gets the default parameters
+%   opts = hifir4m_create_params gets the default parameters
 %
-%   opts = hilucsi4m_create_options(OptionFieldName, OptionValue) mimics
+%   opts = hifir4m_create_params(OptionFieldName, OptionValue) mimics
 %   the MATLAB parameter syntax (key, value), which is commonly used (e.g.
 %   in 2-D line plotting). Available option field names are
 %       tau_L, tau_U, tau_d, tau_kappa, alpha_L, alpha_U, rho, c_d,
@@ -22,14 +22,14 @@ function opts = hilucsi4m_create_options(varargin)
 %
 % Examples:
 %   To get default constrol parameters
-%       >> opts = hilucsi4m_create_options;
+%       >> opts = hifir4m_create_params;
 %
 %   To customize parameters
-%       >> opts = hilucsi4m_create_options('tau_L', 1e-3, 'tau_U', 1e-3);
+%       >> opts = hifir4m_create_params('tau_L', 1e-3, 'tau_U', 1e-3);
 %       >> assert(opts.tau_L == 1e-3);
 %
 % See Also:
-%   HILUCSI4M_FACTORIZE
+%   HIFIR4M_FACTORIZE
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
@@ -41,8 +41,9 @@ persistent fnames
 if isempty(fnames)
     fnames = {'tau_L', 'tau_U', 'tau_d', 'tau_kappa', 'alpha_L', 'alpha_U', ...
         'rho', 'c_d', 'c_h', 'N', 'verbose', 'rf_par', 'reorder', 'saddle', ...
-        'check', 'pre_scale', 'symm_pre_lvls', 'threads', 'fat_schur_1st', ...
-        'qrcp_cond'};
+        'check', 'pre_scale', 'symm_pre_lvls', 'threads', 'mumps_blr', ...
+        'fat_schur_1st', 'rrqr_cond', 'pivot', 'gamma', 'beta', 'is_symm', ...
+        'no_pre'};
 end
 
 p = inputParser;
@@ -64,8 +65,14 @@ addOptional(p, 'check', 1, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'pre_scale', 0, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'symm_pre_lvls', 1, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'threads', 0, @(x) isscalar(x) && x >= 0);
+addOptional(p, 'mumps_blr', 1, @(x) isscalar(x) && x >= 0);
 addOptional(p, 'fat_schur_1st', 0, @(x) isscalar(x) && x >= 0);
-addOptional(p, 'qrcp_cond', 0, @(x) isscalar(x));
+addOptional(p, 'rrqr_cond', 0, @(x) isscalar(x));
+addOptional(p, 'pivot', 0, @(x) isscalar(x) && x >= 0);
+addOptional(p, 'gamma', 1.0, @(x) isscalar(x) && x >= 0);
+addOptional(p, 'beta', 1e3, @(x) isscalar(x) && x >= 0);
+addOptional(p, 'is_symm', 0, @(x) isscalar(x) && x>= 0);
+addOptional(p, 'no_pre', 0, @(x) isscalar(x) && x >= 0);
 parse(p, varargin{:});
 sorted_opts = p.Results;
 % NOTE parser gives sorted structure

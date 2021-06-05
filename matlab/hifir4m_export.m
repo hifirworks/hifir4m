@@ -1,21 +1,21 @@
-function hilu = hilucsi4m_export(dbase, varargin)
-%HILUCSI4M_EXPORT - Export internal data to MATLAB
+function hilu = hifir4m_export(dbase, varargin)
+%HIFIR4M_EXPORT - Export internal data to MATLAB
 %
 % Syntax:
-%   hilu = hilucsi4m_export(dbase)
-%   hilu = hilucsi4m_export(dbase, Options)
+%   hilu = hifir4m_export(dbase)
+%   hilu = hifir4m_export(dbase, Options)
 %
 % Description:
-%   HILUCSI4M_EXPORT exports the internal data inside C++ to MATLAB
+%   HIFIR4M_EXPORT exports the internal data inside C++ to MATLAB
 %
-%   hilu = hilucsi4m_export(dbase) exports data in all levels to MATLAB,
+%   hilu = hifir4m_export(dbase) exports data in all levels to MATLAB,
 %   where hilu is a cell array, whose length is the number of levels.
 %   Each sparse level will contain a struct of "L_B", "D_B, "U_B", "E",
 %   "F", "s_row", "s_col", "p", "p_inv", "q", and "q_inv" total 11
 %   attributes. For the last dense level, it will output the dense matrix,
 %   and the user need to factorize it manullly by either LU or QR.
 %
-%   hilu = hilucsi4m_export(dbase, Options) with customized options:
+%   hilu = hifir4m_export(dbase, Options) with customized options:
 %       1. 'format': {'sparse', 'economic'}, the default is `sparse`. For
 %           'economic', it will output struct of CRS_MATRIX.
 %       2. 'destroy': boolean flag, if true, then it will destroy the
@@ -24,14 +24,14 @@ function hilu = hilucsi4m_export(dbase, varargin)
 %
 % Examples:
 %   To get all levels in sparse format
-%       >> hilu = hilucsi4m_export(dbase);
+%       >> hilu = hifir4m_export(dbase);
 %       >> for lvl = 1:size(hilu,1); disp(hilu{i}); end
 %
 %   To get with economic format, do the following
-%       >> hilu = hilucsi4m_export(dbase, 'format', 'economic');
+%       >> hilu = hifir4m_export(dbase, 'format', 'economic');
 %
 % See Also:
-%   HILUCSI4M_FACTORIZE, LU, QR
+%   HIFIR4M_FACTORIZE, LU, QR
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
@@ -45,7 +45,7 @@ addOptional(p, 'destroy', false, @(x) isscalar(x));
 parse(p, varargin{:});  % parse
 opts = p.Results;
 
-hilu = hilucsi4m_mex(HILUCSI4M_EXPORT_DATA, dbase, opts.destroy);
+hilu = hifir4m_mex(HIFIR4M_EXPORT_DATA, dbase, opts.destroy);
 
 if strcmp(opts.format, 'sparse')
     if isempty(which('crs_2sparse'))

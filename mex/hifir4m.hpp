@@ -93,7 +93,7 @@ class MexNspFilter : public hif::NspFilter {
 
   virtual void user_filter(void *x, const std::size_t n,
                            const char dtype) const override {
-    if (dtype != 'd' || dtype != 'z')
+    if (dtype != 'd')
       mexErrMsgIdAndTxt("hifir4m:nspFilter:badDtype",
                         "only double precision is supported");
     if (f_name == "#unknown#")

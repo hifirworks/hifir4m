@@ -1,42 +1,42 @@
-function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
-%HILUCSI4M_FGMRES - Flexible (right-preconditioned) GMRES with HILUCSI
+function varargout = hifir4m_gmres(dbase, A, b, varargin)
+%HIFIR4M_GMRES - right-preconditioned GMRES with HIF
 %
 % Syntax:
-%   x = hilucsi4m_fgmres(dbase, A, b)
-%   x = hilucsi4m_fgmres(dbase, A, b, restart)
-%   x = hilucsi4m_fgmres(dbase, A, b, restart, rtol)
-%   x = hilucsi4m_fgmres(dbase, A, b, restart, rtol, maxit)
-%   x = hilucsi4m_fgmres(dbase, A, b, restart, rtol, maxit, x0)
-%   x = hilucsi4m_fgmres(dbase, A, b, restart, rtol, maxit, x0, verbose)
-%   [x, flag] = hilucsi4m_fgmres(___)
-%   [x, flag, iters] = hilucsi4m_fgmres(___)
-%   [x, flag, iters, t] = hilucsi4m_fgmres(___)
-%   [___] = hilucsi4m_fgmres(___, update)
-%   [___] = hilucsi4m_fgmres(___, update, nsp_cst)
+%   x = hifir4m_gmres(dbase, A, b)
+%   x = hifir4m_gmres(dbase, A, b, restart)
+%   x = hifir4m_gmres(dbase, A, b, restart, rtol)
+%   x = hifir4m_gmres(dbase, A, b, restart, rtol, maxit)
+%   x = hifir4m_gmres(dbase, A, b, restart, rtol, maxit, x0)
+%   x = hifir4m_gmres(dbase, A, b, restart, rtol, maxit, x0, verbose)
+%   [x, flag] = hifir4m_gmres(___)
+%   [x, flag, iters] = hifir4m_gmres(___)
+%   [x, flag, iters, t] = hifir4m_gmres(___)
+%   [___] = hifir4m_gmres(___, update)
+%   [___] = hifir4m_gmres(___, update, nsp_cst)
 %
 % Description:
-%   HILUCSI4M_FGMRES is an optimized serial implementation of
+%   HIFIR4M_GMRES is an optimized serial implementation of
 %   right-preconditioned GMRES (sometimes referred as flexible GMRES [1]),
 %   which has been shown to be more robust than the left-version [2]. The
-%   FGMRES here uses HILUCSI as a right preconditioner, which works very
+%   GMRES here uses HIFIR as a right preconditioner, which works very
 %   well (especially for saddle point and indifinite problems).
 %
 %   Before we dig into each of the syntaxes highlighted above, one thing
 %   needs to be kept in mind is that the solver MUST be called only after
 %   an instance of the preconditioner has been successfully factorized!
 %
-%   x = hilucsi4m_fgmres(dbase, A, b) computes the solution of A\b with
+%   x = hifir4m_gmres(dbase, A, b) computes the solution of A\b with
 %   default parameters.
 %
-%   x = hilucsi4m_fgmres(dbase, A, b, restart, rtol, maxit) allows one to
+%   x = hifir4m_gmres(dbase, A, b, restart, rtol, maxit) allows one to
 %   customize restart (30), relative tolerance (1e-6) and maximum
 %   iterations (500) for the GMRES solver; their default values are shown
 %   in the parentheses.
 %
-%   x = hilucsi4m_fgmres(___, x0, verbose) further allows one to supply the
+%   x = hifir4m_gmres(___, x0, verbose) further allows one to supply the
 %   initial guess (all zeros) and verbose flag (true).
 %
-%   [x, flag, iters, t] = hilucsi4m_fgmres(___) indicates that there are
+%   [x, flag, iters, t] = hifir4m_gmres(___) indicates that there are
 %   three more optoinal outputs, namely
 %       flag - solver status flag
 %           0  - successed
@@ -47,20 +47,20 @@ function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
 %       iters - total iterations used
 %       t - solving wall-clock time (no MATLAB interperater overhead)
 %
-%   [___] = hilucsi4m_fgmres(___, update) indicates using updated kernel
+%   [___] = hifir4m_gmres(___, update) indicates using updated kernel
 %   for the preconditioner.
 %
-%   [___] = hilucsi4m_fgmres(___, update, nsp_cst) solves a singular problem
+%   [___] = hifir4m_gmres(___, update, nsp_cst) solves a singular problem
 %   with a (partial) constant mode that is specificed via a size-2 array
 %   nsp_cst, in which the first entry is the starting const mode entry while
 %   the ending index for the second element in nsp_cst
 %
 % Examples:
-%   The following example shows how to use the FGMRES solver
+%   The following example shows how to use the GMRES solver
 %       >> % assume we have dbase initialized and factorized
 %       >> A = sprand(10, 10, 0.5);
 %       >> b = rand(size(A, 1), 1);
-%       >> x = hilucsi4m_fgmres(dbase, A, b);
+%       >> x = hifir4m_gmres(dbase, A, b);
 %       >> assert(norm(A-b)/norm(b)<=1e-6);
 %
 % References:
@@ -71,7 +71,7 @@ function varargout = hilucsi4m_fgmres(dbase, A, b, varargin)
 %       Numerical Linear Algebra with Applications, 26(1), e2215.
 %
 % See Also:
-%   HILUCSI_FACTORIZE, GMRES
+%   HIFIR_FACTORIZE, GMRES
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
@@ -101,16 +101,14 @@ if isempty(x0)
     end
 end
 % Convert to zero-based CRS
-if issparse(A); A = hilucsi4m_sp2crs(A); end
-assert(isa(A.row_ptr, 'int32'));
-assert(isa(A.col_ind, 'int32'));
-A = hilucsi4m_2int64(A);
+if issparse(A); A = hifir4m_sp2crs(A); end
+A = hifir4m_ensure_int(A);
 if length(varargin) < 7 || isempty(varargin{7})
-    [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_SOLVE, dbase, ...
+    [varargout{1:nargout}] = hifir4m_mex(HIFIR4M_KSP_SOLVE, dbase, ...
         A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
         gmres_pars(3), x0, verbose, update);
 else
-    [varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_SOLVE, dbase, ...
+    [varargout{1:nargout}] = hifir4m_mex(HIFIR4M_KSP_SOLVE, dbase, ...
         A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
         gmres_pars(3), x0, verbose, update, varargin{7});
 end

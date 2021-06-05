@@ -1,13 +1,13 @@
-function varargout = hilucsi4m_gmres_null(dbase, A, b, varargin)
-%HILUCSI4M_GMRES_NULL - right-preconditioned GMRES for left null space
+function varargout = hifir4m_fgmres_null(dbase, A, b, varargin)
+%HIFIR4M_FGMRES_NULL - right-preconditioned FGMRES for null-space vectors
 %
 % Syntax:
-%   x = hilucsi4m_gmres_null(dbase, A, b)
+%   x = hifir4m_fgmres_null(dbase, A, b)
 %
 % Long description
 %
 % See Also:
-%   HILUCSI_FGMRES
+%   HIFIR_FGMRES
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
@@ -37,11 +37,9 @@ if isempty(x0)
     end
 end
 % Convert to zero-based CRS
-if issparse(A); A = hilucsi4m_sp2crs(A); end
-assert(isa(A.row_ptr, 'int32'));
-assert(isa(A.col_ind, 'int32'));
-A = hilucsi4m_2int64(A);
-[varargout{1:nargout}] = hilucsi4m_mex(HILUCSI4M_KSP_NULL, dbase, ...
+if issparse(A); A = hifir4m_sp2crs(A); end
+A = hifir4m_ensure_int(A);
+[varargout{1:nargout}] = hifir4m_mex(HIFIR4M_KSP_NULL, dbase, ...
     A.row_ptr, A.col_ind, A.val, b, gmres_pars(1), gmres_pars(2), ...
     gmres_pars(3), x0, verbose, hiprec);
 

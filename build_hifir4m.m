@@ -3,7 +3,8 @@ function build_hifir4m(force)
 
 if nargin < 1; force = false; end
 mods = {'mex/hifir4m_mex', ...
-    'matlab/private/hifir4m_ijv2crs'};
+    'matlab/private/hifir4m_ijv2crs', ...
+    'matlab/private/hifir4m_isint64'};
 %{
 if system('git submodule update --init hifir')
     fprintf(2, 'Warning! Failed to update submodule HIFIR\n');

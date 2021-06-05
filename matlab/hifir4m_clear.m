@@ -1,14 +1,14 @@
-function hilucsi4m_clear(dbase)
-%HILUCSI4M_CLEAR - Clear the storage in a database
+function hifir4m_clear(dbase)
+%HIFIR4M_CLEAR - Clear the storage in a database
 %
 % Syntax:
-%   hilucsi4m_clear(dbase)
+%   hifir4m_clear(dbase)
 %
 % Description:
 %   Clearing the storage is the purpose of this routine.
 %
 % See Also:
-%   HILUCSI4M_FINALIZE
+%   HIFIR4M_FINALIZE
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
@@ -16,7 +16,7 @@ function hilucsi4m_clear(dbase)
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
-hilucsi4m_mex(HILUCSI4M_CLEAR, dbase);
+hifir4m_mex(HIFIR4M_CLEAR, dbase);
 
 %-------------------------- END MAIN CODE -------------------------------%
 end
