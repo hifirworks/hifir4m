@@ -39,7 +39,7 @@ function opts = hifir4m_create_params(varargin)
 
 persistent fnames
 if isempty(fnames)
-    fnames = {'tau_L', 'tau_U', 'tau_d', 'tau_kappa', 'alpha_L', 'alpha_U', ...
+    fnames = {'tau_L', 'tau_U', 'kappa_d', 'kappa', 'alpha_L', 'alpha_U', ...
         'rho', 'c_d', 'c_h', 'N', 'verbose', 'rf_par', 'reorder', 'saddle', ...
         'check', 'pre_scale', 'symm_pre_lvls', 'threads', 'mumps_blr', ...
         'fat_schur_1st', 'rrqr_cond', 'pivot', 'gamma', 'beta', 'is_symm', ...
@@ -49,8 +49,8 @@ end
 p = inputParser;
 addOptional(p, 'tau_L', 1e-4, @(x) isscalar(x) && x > 0);
 addOptional(p, 'tau_U', 1e-4, @(x) isscalar(x) && x > 0);
-addOptional(p, 'tau_d', 3.0, @(x) isscalar(x) && x > 0);
-addOptional(p, 'tau_kappa', 3.0, @(x) isscalar(x) && x > 0);
+addOptional(p, 'kappa_d', 3.0, @(x) isscalar(x) && x > 0);
+addOptional(p, 'kappa', 3.0, @(x) isscalar(x) && x > 0);
 addOptional(p, 'alpha_L', 10, @(x) isscalar(x) && x > 0);
 addOptional(p, 'alpha_U', 10, @(x) isscalar(x) && x > 0);
 addOptional(p, 'rho', 0.5, @(x) isscalar(x) && x > 0);
