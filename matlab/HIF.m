@@ -59,6 +59,12 @@ classdef HIF
             [varargout{1:nargout}] = hifir4m_factorize(obj.dbase, A, ...
                 varargin{:});
         end
+        function info = query_stats(obj)
+            %QUERY_INFO - Qeury factorization stats
+            %
+            % See Also: HIFIR4M_QUERY_STATS
+            info = hifir4m_query_stats(obj.dbase);
+        end
         function hilu = export(obj, varargin)
             %EXPORT - Export internal data in C++ to MATLAB
             %

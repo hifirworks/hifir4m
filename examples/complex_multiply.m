@@ -10,7 +10,7 @@ b = A*ones(n,1);
 h = HIF(is_mixed, is_complex);
 
 %% Factorize A
-[tt, info] = h.factorize(A);
+info = h.factorize(A);
 disp(info);
 
 %% Solve for x=h\b

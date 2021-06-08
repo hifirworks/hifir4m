@@ -28,20 +28,27 @@ enum {
   HIFIR4M_EXPORT_DATA = HIFIR4M_KSP_NULL + 1,  ///< export data
   HIFIR4M_M_SOLVE2 = HIFIR4M_EXPORT_DATA + 1,  ///< solve 2 RHS
   HIFIR4M_M_MULTIPLY = HIFIR4M_M_SOLVE2 + 1,   ///< matrix vector
+  HIFIR4M_QUERY = HIFIR4M_M_MULTIPLY + 1,      ///< query factorization info
 };
 }  // namespace hifir4m
 
 // structure of database fields
 static const char* fnames[3] = {"id", "is_mixed", "is_real"};
 
+// structure of HIF information
+static const char* fac_info_names[11] = {
+    "nnz",         "nnz_ef", "nnz_ldu", "deferrals",  "dy_deferrals", "drops",
+    "space_drops", "levels", "rank",    "schur_rank", "schur_size"};
+
 // helper function for getting id and is_mixed
 static bool decode_database_struct(const mxArray* rhs, int& id, bool& is_mixed,
                                    bool& is_real);
 
 template <bool IsMixed, bool isReal>
-static void get_fac_info(int id, mwSize& nnz, mwSize& nnz_ef, mwSize& deferrals,
-                         mwSize& dy_deferrals, mwSize& drops,
-                         mwSize& space_drops, mwSize& lvls);
+static void get_fac_info(int id, mwSize& nnz, mwSize& nnz_ef, mwSize& nnz_ldu,
+                         mwSize& deferrals, mwSize& dy_deferrals, mwSize& drops,
+                         mwSize& space_drops, mwSize& lvls, mwSize& rank,
+                         mwSize& schur_rank, mwSize& schur_size);
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   using complex_t = std::complex<double>;
@@ -178,37 +185,67 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                                                           prhs[4], prhs[5])
                     : hifir4m::factorize<false, complex_t>(id, prhs[2], prhs[3],
                                                            prhs[4], prhs[5]);
-    if (nlhs) plhs[0] = mxCreateDoubleScalar(tt);
-    if (nlhs > 1) {
-      static const char* fac_info_names[7] = {
-          "levels",       "nnz",   "nnz_EF",     "deferrals",
-          "dy_deferrals", "drops", "space_drops"};
-      // create an information structure
-      mwSize info[7];
-      if (!is_mixed) {
-        if (is_real)
-          get_fac_info<false, true>(id, info[1], info[2], info[3], info[4],
-                                    info[5], info[6], info[0]);
-        else
-          get_fac_info<false, false>(id, info[1], info[2], info[3], info[4],
-                                     info[5], info[6], info[0]);
-      } else {
-        if (is_real)
-          get_fac_info<true, true>(id, info[1], info[2], info[3], info[4],
-                                   info[5], info[6], info[0]);
-        else
-          get_fac_info<true, false>(id, info[1], info[2], info[3], info[4],
-                                    info[5], info[6], info[0]);
-      }
-      plhs[1] = mxCreateStructMatrix(1, 1, 7, fac_info_names);
-      for (int i = 0; i < 7; ++i) {
-        auto mx_ptr = mxCreateUninitNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
-        *(mxUint64*)mxGetData(mx_ptr) = info[i];
-        mxSetFieldByNumber(plhs[1], 0, i, mx_ptr);
-      }
+    // create an information structure
+    mwSize info[11];
+    if (!is_mixed) {
+      if (is_real)
+        get_fac_info<false, true>(id, info[0], info[1], info[2], info[3],
+                                  info[4], info[5], info[6], info[7], info[8],
+                                  info[9], info[10]);
+      else
+        get_fac_info<false, false>(id, info[0], info[1], info[2], info[3],
+                                   info[4], info[5], info[6], info[7], info[8],
+                                   info[9], info[10]);
+    } else {
+      if (is_real)
+        get_fac_info<true, true>(id, info[0], info[1], info[2], info[3],
+                                 info[4], info[5], info[6], info[7], info[8],
+                                 info[9], info[10]);
+      else
+        get_fac_info<true, false>(id, info[0], info[1], info[2], info[3],
+                                  info[4], info[5], info[6], info[7], info[8],
+                                  info[9], info[10]);
     }
+    plhs[0] = mxCreateStructMatrix(1, 1, 11, fac_info_names);
+    for (int i = 0; i < 11; ++i) {
+      auto mx_ptr = mxCreateUninitNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
+      *(mxUint64*)mxGetData(mx_ptr) = info[i];
+      mxSetFieldByNumber(plhs[0], 0, i, mx_ptr);
+    }
+    if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
     return;
   }  // end factorization
+
+  // query information
+  if (action == hifir4m::HIFIR4M_QUERY) {
+    mwSize info[11];
+    if (!is_mixed) {
+      if (is_real)
+        get_fac_info<false, true>(id, info[0], info[1], info[2], info[3],
+                                  info[4], info[5], info[6], info[7], info[8],
+                                  info[9], info[10]);
+      else
+        get_fac_info<false, false>(id, info[0], info[1], info[2], info[3],
+                                   info[4], info[5], info[6], info[7], info[8],
+                                   info[9], info[10]);
+    } else {
+      if (is_real)
+        get_fac_info<true, true>(id, info[0], info[1], info[2], info[3],
+                                 info[4], info[5], info[6], info[7], info[8],
+                                 info[9], info[10]);
+      else
+        get_fac_info<true, false>(id, info[0], info[1], info[2], info[3],
+                                  info[4], info[5], info[6], info[7], info[8],
+                                  info[9], info[10]);
+    }
+    plhs[0] = mxCreateStructMatrix(1, 1, 11, fac_info_names);
+    for (int i = 0; i < 11; ++i) {
+      auto mx_ptr = mxCreateUninitNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
+      *(mxUint64*)mxGetData(mx_ptr) = info[i];
+      mxSetFieldByNumber(plhs[0], 0, i, mx_ptr);
+    }
+    return;
+  }
 
   // M solve
   if (action == hifir4m::HIFIR4M_M_SOLVE) {
@@ -517,17 +554,27 @@ static bool decode_database_struct(const mxArray* rhs, int& id, bool& is_mixed,
 }
 
 template <bool IsMixed, bool isReal>
-static void get_fac_info(int id, mwSize& nnz, mwSize& nnz_ef, mwSize& deferrals,
-                         mwSize& dy_deferrals, mwSize& drops,
-                         mwSize& space_drops, mwSize& lvls) {
+static void get_fac_info(int id, mwSize& nnz, mwSize& nnz_ef, mwSize& nnz_ldu,
+                         mwSize& deferrals, mwSize& dy_deferrals, mwSize& drops,
+                         mwSize& space_drops, mwSize& lvls, mwSize& rank,
+                         mwSize& schur_rank, mwSize& schur_size) {
   using value_type =
       typename std::conditional<isReal, double, std::complex<double>>::type;
   auto data = hifir4m::database<IsMixed, value_type>(hifir4m::HIFIR4M_GET, id);
+  if (data->M->empty()) {
+    nnz = nnz_ef = nnz_ldu = deferrals = dy_deferrals = drops = space_drops =
+        lvls = rank = schur_rank = schur_size = 0u;
+    return;
+  }
   nnz = data->M->nnz();
   nnz_ef = data->M->nnz_ef();
+  nnz_ldu = data->M->nnz_ldu();
   deferrals = data->M->stats(0);
   dy_deferrals = data->M->stats(1);
   drops = data->M->stats(4);
   space_drops = data->M->stats(5);
   lvls = data->M->levels();
+  rank = data->M->rank();
+  schur_rank = data->M->schur_rank();
+  schur_size = data->M->schur_size();
 }

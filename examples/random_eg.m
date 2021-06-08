@@ -13,7 +13,7 @@ b = rand(10, 1);
 dbase = hifir4m_initialize(is_mixed);
 
 %% Factorize A
-[tt, info] = hifir4m_factorize(dbase, A);
+info = hifir4m_factorize(dbase, A);
 disp(info);
 
 %% Solve for x=A\b
