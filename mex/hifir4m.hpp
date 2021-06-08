@@ -43,6 +43,7 @@ typedef int integer_type;
 typedef mwSignedIndex integer_type;
 #endif
 
+#if 0
 template <class MType, class ValueType = void>
 class OperatorUpdateSolver
     : public hif::ksp::UserOperatorBase<MType, ValueType> {
@@ -74,6 +75,8 @@ class OperatorUpdateSolver
  protected:
   mutable array_type _v;  ///< workspace
 };
+
+#endif
 
 class MexNspFilter : public hif::NspFilter {
  public:
@@ -168,34 +171,15 @@ struct HIFIR4M_Database {
   ///< preconditioner type
   using ksp_factory_t = hif::ksp::KSPFactory<prec_t, _value_type>;
   ///< KSP factory type
-  using solver_t = typename ksp_factory_t::gmres;            ///< FMGRES type
-  using null_solver_t = typename ksp_factory_t::gmres_null;  ///< left null
-  using null_hi_solver_t = typename ksp_factory_t::gmres_null_hi;  ///< null hi
-  using update_operator_t = OperatorUpdateSolver<prec_t, _value_type>;
+  using solver_t = typename ksp_factory_t::fgmres;  ///< FMGRES type
   ///< updated operator type
   static constexpr bool IS_MIXED = IsMixed;  ///< mixed flag
   static constexpr bool IS_REAL = _IS_REAL;  ///< real flag
 
   // attributes
-  std::shared_ptr<prec_t> M;                      ///< preconditioner attribute
-  std::shared_ptr<solver_t> ksp;                  ///< KSP solver
-  std::shared_ptr<null_solver_t> ksp_null;        ///< KSP null solver
-  std::shared_ptr<null_hi_solver_t> ksp_null_hi;  ///< KSP null solver hi
+  std::shared_ptr<prec_t> M;      ///< preconditioner attribute
+  std::shared_ptr<solver_t> ksp;  ///< KSP solver
 };
-
-// // structure of preconditioner with mixed precision
-// template <>
-// struct HIFIR4M_Database<true> {
-//   using prec_t        = hif::HIFIR<float, int>;  ///< preconditioner
-//   type using ksp_factory_t = hif::ksp::KSPFactory<prec_t, double>;
-//   ///< KSP factory type
-//   using solver_t = ksp_factory_t::fgmres;
-//   ///< FMGRES type
-//   using update_operator_t = OperatorUpdateSolver<prec_t, double>;
-
-//   std::shared_ptr<prec_t>   M;    ///< preconditioner attribute
-//   std::shared_ptr<solver_t> ksp;  ///< KSP solver
-// };
 
 enum {
   HIFIR4M_CREATE = 0,   ///< create database
@@ -618,7 +602,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
     int id, const int restart, const int max_iter, const double rtol,
     const bool verbose, const mxArray *rowptr, const mxArray *colind,
     const mxArray *val, const mxArray *rhs, mxArray *lhs,
-    const bool update = false, const int *cst_nsp = nullptr,
+    const int iter_refines = 1, const int *cst_nsp = nullptr,
     const char *fname = nullptr, const mxArray *fhdl = nullptr) {
   using ksp_t = typename HIFIR4M_Database<IsMixed, ValueType>::solver_t;
 
@@ -655,6 +639,8 @@ inline std::tuple<int, int, double, double> KSP_solve(
   if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
   if (max_iter > 0) ksp.set_maxit(max_iter);
   if (rtol > 0.0) ksp.set_rtol(rtol);
+  const int irs = iter_refines > 0 ? iter_refines : 1;
+  ksp.set_inner_steps(irs);
 
   // enable const null space filter
   if (cst_nsp)
@@ -680,17 +666,12 @@ inline std::tuple<int, int, double, double> KSP_solve(
   hif::DefaultTimer timer;
   int flag;
   std::size_t iters;
+  const int kernel_type =
+      irs <= 1 ? hif::ksp::TRADITION : hif::ksp::ITERATIVE_REFINE;
   timer.start();
   try {
-    if (!update)
-      std::tie(flag, iters) = ksp.solve(A, b, x, hif::ksp::TRADITION,
-                                        true /* always with guess */, verbose);
-    else {
-      const auto M =
-          typename HIFIR4M_Database<IsMixed, ValueType>::update_operator_t(
-              *data->M);
-      std::tie(flag, iters) = ksp.solve_user(A, M, b, x, true, verbose);
-    }
+    std::tie(flag, iters) =
+        ksp.solve(A, b, x, kernel_type, true /* always with guess */, verbose);
   } catch (const std::exception &e) {
     mexErrMsgIdAndTxt("hifir4m:KSP_solve:failedSolve",
                       "KSP_solve failed with message:\n%s", e.what());
@@ -703,6 +684,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 
+#if 0
 /**
  * @brief Solve left null space with GMRES
  *
@@ -796,6 +778,8 @@ inline std::tuple<int, int, double, double> KSP_null_solve(
   !UseHi ? data->ksp_null.reset() : data->ksp_null_hi.reset();  // free
   return std::make_tuple(flag, (int)iters, res, tt);
 }
+
+#endif
 
 /**
  * @brief Extract the internal data from HIFIR

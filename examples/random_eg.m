@@ -17,7 +17,7 @@ dbase = hifir4m_initialize(is_mixed);
 disp(info);
 
 %% Solve for x=A\b
-[x, flag] = hifir4m_gmres(dbase, A, b);
+[x, flag] = hifir4m_fgmres(dbase, A, b);
 if flag; fprintf(2, 'warning! solver failed with flag %d\n', flag); end
 res = norm(A*x-b)/norm(b);
 if res > 1e-6; fprintf(2, 'residual too large %.4g\n', res); end

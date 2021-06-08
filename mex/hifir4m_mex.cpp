@@ -315,7 +315,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                                      is_real ? mxREAL : mxCOMPLEX);
     }
     const bool verbose = nrhs < 11 ? true : (bool)mxGetScalar(prhs[10]);
-    const bool update = nrhs < 12 ? false : (bool)mxGetScalar(prhs[11]);
+    const int irs = nrhs < 12 ? 1 : (int)mxGetScalar(prhs[11]);
     int flag, iters;
     double res, tt;
     if (nrhs < 13) {
@@ -323,20 +323,20 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         if (is_mixed)
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<true>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update);
+              prhs[5], plhs[0], irs);
         else
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<false>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update);
+              prhs[5], plhs[0], irs);
       } else {
         if (is_mixed)
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<true, complex_t>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update);
+              prhs[5], plhs[0], irs);
         else
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<false, complex_t>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update);
+              prhs[5], plhs[0], irs);
       }
     } else {
       const mxArray* fhdl = nullptr;  // function handler
@@ -364,20 +364,20 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         if (is_mixed)
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<true>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update, nsp_ptr, fname, fhdl);
+              prhs[5], plhs[0], irs, nsp_ptr, fname, fhdl);
         else
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<false>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update, nsp_ptr, fname, fhdl);
+              prhs[5], plhs[0], irs, nsp_ptr, fname, fhdl);
       } else {
         if (is_mixed)
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<true, complex_t>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update, nsp_ptr, fname, fhdl);
+              prhs[5], plhs[0], irs, nsp_ptr, fname, fhdl);
         else
           std::tie(flag, iters, res, tt) = hifir4m::KSP_solve<false, complex_t>(
               id, restart, maxit, rtol, verbose, prhs[2], prhs[3], prhs[4],
-              prhs[5], plhs[0], update, nsp_ptr, fname, fhdl);
+              prhs[5], plhs[0], irs, nsp_ptr, fname, fhdl);
       }
       if (fname && fname != feval) mxFree(fname);
     }
@@ -399,6 +399,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   }
 
   if (action == hifir4m::HIFIR4M_KSP_NULL) {
+    mexWarnMsgIdAndTxt("hifir4m:mexgateway:ksp_null",
+                       "Nullspace solver is deprecated!");
+#if 0
     // KSP null solver
     // act, dbase, rowptr, colind, val, b, (restart, rtol, maxit, x0, verbose,
     // hiprec)
@@ -479,6 +482,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
       if (nlhs > 3) plhs[3] = mxCreateDoubleScalar(res);
       if (nlhs > 4) plhs[4] = mxCreateDoubleScalar(tt);
     }
+#endif
     return;
   }
 

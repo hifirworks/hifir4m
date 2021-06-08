@@ -86,18 +86,11 @@ classdef HIF
             [varargout{1:nargout}] = hifir4m_mmultiply(obj.dbase, ...
                 varargin{:});
         end
-        function varargout = gmres(obj, A, b, varargin)
-            %GMRES - Solving a system with GMRES
+        function varargout = fgmres(obj, A, b, varargin)
+            %FGMRES - Solving a system with FGMRES
             %
-            % See Also: HIFIR4M_GMRES, FACTORIZE
-            [varargout{1:nargout}] = hifir4m_gmres(obj.dbase, A, b, ...
-                varargin{:});
-        end
-        function varargout = fgmres_null(obj, A, b, varargin)
-            %FGMRES_NULL - Solving for null space
-            %
-            % See Also: HIFIR4M_FGMRES_NULL
-            [varargout{1:nargout}] = hifir4m_fgmres_null(obj.dbase, A, b, ...
+            % See Also: HIFIR4M_FGMRES, FACTORIZE
+            [varargout{1:nargout}] = hifir4m_fgmres(obj.dbase, A, b, ...
                 varargin{:});
         end
         function clear(obj)

@@ -19,7 +19,7 @@ b = rand(N, 1);
 b = b - ((left_nsp'*b)/norm(left_nsp)^2)*left_nsp;
 h.factorize(A);
 % one can do this
-x = h.gmres(A, b, [], [], [], [], [], [], @my_filter);
+x = h.fgmres(A, b, [], [], [], [], [], [], @my_filter);
 % or
 % x = h.fgmres(A, b, [], [], [], [], [], [], @(x) my_filter(x, N));
 fprintf(1, 'relative residual in 2 norm is %g\n', norm(A*x-b)/norm(b));
