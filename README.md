@@ -1,25 +1,70 @@
-# HIFIR MATLAB Interface #
+# HIFIR High-Level Interface for MATLAB and GNU Octave #
 
-`hifir4m` is a MATLAB interface for HIFIR preconditioner, plus a right-preconditioned GMRES/FGMRES solvers. HIFIR is a hybrid of *multi-level ILU* (*MLILU*) and *rank-revealing QR* (*RRQR*) factorization preconditioner for ill-conditioned and singular systems, which is developed by NumGeom research group at Stony Brook University.
+`hifir4m` allows accessing HIFIR from MATLAB and GNU Octave using pre-compiled high-level or intermediate-level interfaces. Its underlying library, HIFIR, is a modern preconditoining technology that combines efficient *multi-level ILU* (*MLILU*) and robust *rank-revealing QR* (*RRQR*) factorization at its coarsest level. HIFIR and `hifir4m` enables users to precondition ill-conditioned and singular systems for `gmres`. In additoin, `hifir4m` also offers a high-level solver named `gmresHifir`, with a similar interface as MATLAB's built-in `gmres` function but uses right-preconditioned GMRES and FGMRES with `HIFIR` as a right-preconditioner.
 
 ## Installation ##
 
-Copy this project to your preferred location, then under MATLAB command window, simply type
+Clone this project to your preferred location. Then start MATLAB or GNU Octave under the directory that contains `hifir4m`, or run the command
 
 ```matlab
->> startup
+>> run('/path/to/hifir4m/load_hifir')
 ```
 
-It will try to fetch the C++ kernel (if needed) from BitBucket repository, then build the *mex* kernels (again, if needed). It is worth noting that HIFIR4M links to MATLAB built-in BLAS/LAPACK, thanks to its flexible template and header-only design.
+(and replace `/path/to/hifir4m/` to the directory that contains `hifir4m`) bo build `hifir4m` and load its path. It will build the *mex* kernels if needed by linking to MATLAB and Octave's built-in BLAS/LAPACK libraries for the low-level QRCP.
 
 ## Usage ##
 
-Look at the random matrix example under `examples` directory. Also, use `help` command for docstrings. This project allows you (1) solving linear systems (reusing same preconditioner) with initial guess and (2) accessing only the preconditioner part for using in other project (e.g., multigrid smoother). For most application codes, (1) is what you want, as you can see, the design is for nonlinear and/or transient problems.
+The easiest way to use `hifir4m` is to call the `gmresHifir` interface. For example,
+```matlab
+>> [x, flag, relres, iter, reshis, times] = gmresHifir(A, b);
+```
+where `A` is a MATLAB's built-in sparse matrix or a `MATLAB` `struct` containing the filds of `row_ptr`, `col_ind`, `vals` of a standard CRS storage format, and `b` is a right-hand-side vector (or RHS vectors with two columns).
 
-## Copying ##
+To access the intermediate-level interfaces of `hifir4m`, please see `gmresHifir.m` for the calling sequence of `hifCreate`, `hifApply`, and `hifDestroy`.
 
-This project inherits the GLPv3+ license from HIFIR, for more, check `LICENSE` file.
+## Copyright and Licenses ##
 
-## Contact(s) ##
+`HIFIR`, `hifir4m`, and `hifir4py` are developed by the NumGeom Research Group at Stony Brook University.
 
-Qiao Chen, <qiao.chen@stonybrook.edu>, <benechiao@gmail.com>
+The software suite is released under a dual-license model. For academic users, individual users, or open-source software developers, you can use HIFIR under the GLPv3+ license free of charge for research and evaluation purpose. For commercial users, separate commercial licenses are available through the Stony Brook University.  For inqueries regarding commercial licenses, please contact Prof. Xiangmin Jiao <xiangmin.jiao@stonybrook.edu>.
+
+## How to Cite `HIFIR` ##
+If you use `HIFIR`,  `hifir4m`, or `hifir4py` in your research for nonsingular systems, please cite the `HILUCSI` paper:
+
+```bibtex
+@Article{chen2021hilucsi,
+  author  = {Chen, Qiao and Ghai, Aditi and Jiao, Xiangmin},
+  title   = {{HILUCSI}: Simple, robust, and fast multilevel {ILU} for 
+             large-scale saddle-point problems from {PDE}s},
+  journal = {Numer. Linear Algebra Appl.},
+  year    = {2021},
+  note    = {To appear},
+  doi     = {10.1002/nla.2400},
+```
+
+If you use them to solve highly ill-conditioned of singular systems, please cite the `HIFIR` papers:
+
+```bibtex
+@Article{jiao2020approximate,
+  author  = {Xiangmin Jiao and Qiao Chen},
+  journal = {arxiv},
+  title   = {Approximate Generalized Inverses with Iterative Refinement for 
+             $\epsilon$-Accurate Preconditioning of Singular Systems},
+  year    = {2020},
+  note    = {arXiv:2009.01673},
+}
+
+@Article{chen2021hifir,
+  author  = {Jiao, Xiangmin and Chen, Qiao},
+  title   = {{HIFIR}: Hybrid Incomplete Factorization with Iterative Refinement 
+             for Preconditioning Ill-conditioned and Singular Systems},
+  journal = {arxiv},
+  year    = {2021},
+  note    = {arXiv:21...},
+}
+```
+
+## Contacts ##
+
+- Qiao Chen, <qiao.chen@stonybrook.edu>, <benechiao@gmail.com>
+- Xiangmin Jiao, <xiangmin.jiao@stonybrook.edu>, <xmjiao@gmail.com>
