@@ -1,3 +1,3 @@
-[submodule "hilucsi"]
+[submodule "hifir"]
 	path = hifir
-	url = git@bitbucket.org:numgeom/hilucsi.git
+	url = https://github.com/fastsolve/hifir.git
