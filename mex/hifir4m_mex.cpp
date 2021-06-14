@@ -19,10 +19,6 @@
 
 #include "hifir4m.hpp"
 
-#if defined(MX_HAS_INTERLEAVED_COMPLEX) && MX_HAS_INTERLEAVED_COMPLEX
-    #error "hifir4m assumes non-interleaved complex arrays. Please add -R2017b option to mex."
-#endif
-
 namespace hifir4m {
 enum {
   HIFIR4M_FACTORIZE = HIFIR4M_DESTROY + 1,     ///< Factorize
@@ -323,6 +319,10 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 
   // M solve
   if (action == hifir4m::HIFIR4M_M_SOLVE2) {
+    mexWarnMsgIdAndTxt(
+        "hifir4m:mexgateway:m_solve2",
+        "solving two rhs at the same time is not supported yet!");
+#if 0
     // act, dbase, b
     if (nrhs < 3)
       mexErrMsgIdAndTxt("hifir4m:mexgateway:m_solve",
@@ -336,6 +336,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
       tt = is_mixed ? hifir4m::M_solve2<true, complex_t>(id, prhs[2], plhs[0])
                     : hifir4m::M_solve2<false, complex_t>(id, prhs[2], plhs[0]);
     if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
+#endif
     return;
   }  // end M solve
 

@@ -33,6 +33,7 @@
 #include "hifir4m_config.hpp"
 // avoid sorting!
 #include "HIF.hpp"
+#include "hifir4m_num_array.hpp"
 
 namespace hifir4m {
 // structure of preconditioner and solver
@@ -41,41 +42,6 @@ namespace hifir4m {
 typedef int integer_type;
 #else
 typedef mwSignedIndex integer_type;
-#endif
-
-#if 0
-template <class MType, class ValueType = void>
-class OperatorUpdateSolver
-    : public hif::ksp::UserOperatorBase<MType, ValueType> {
-  using _base = hif::ksp::UserOperatorBase<MType, ValueType>;
-
- public:
-  using array_type = typename _base::array_type;
-  using M_type = typename _base::M_type;
-  using size_type = typename _base::size_type;
-
-  OperatorUpdateSolver() = delete;
-
-  explicit OperatorUpdateSolver(const M_type &M) : _base(M), _v(M.nrows()) {}
-
-  using _base::solve;
-
-  template <class Matrix>
-  inline void solve(const Matrix &A, const array_type &b, const size_type,
-                    array_type &x0) const {
-    // step 1: (2*I-A*inv(M)) * b
-    _base::solve(b, _v);
-    hif::mt::multiply_nt(A, _v, x0);
-    const size_type n = _v.size();
-    for (size_type i(0); i < n; ++i) _v[i] = 2.0 * b[i] - x0[i];
-    // step 2: inv(M)*v
-    _base::solve(_v, x0);
-  }
-
- protected:
-  mutable array_type _v;  ///< workspace
-};
-
 #endif
 
 class MexNspFilter : public hif::NspFilter {
@@ -309,11 +275,9 @@ inline hif::Options create_opt_from_struct(const mxArray *rhs) {
  * @note This routine assumes 0-based index of rowptr/column, in addition, the
  *       mex arrays must maintain valid while accessing the output pointers.
  */
-template <class ValueType>
 inline void convert_crs_mx2pointer(const std::string &prefix,
                                    const mxArray *rowptr, const mxArray *colind,
-                                   const mxArray *val, integer_type **rptr_,
-                                   integer_type **cptr_, ValueType **vptr_,
+                                   integer_type **rptr_, integer_type **cptr_,
                                    mwSize *n_) {
 #ifdef HILIUCSI4M_USE_32INT
   if (!mxIsInt32(rowptr) || !mxIsInt32(colind))
@@ -328,17 +292,16 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
   integer_type *rptr = (integer_type *)mxGetData(rowptr),
                *cptr = (integer_type *)mxGetData(colind);
   const auto nnz = rptr[n] - rptr[0];
-  if (mxGetM(colind) < (mwSize)nnz || mxGetM(val) < (mwSize)nnz)
+  if (mxGetM(colind) < (mwSize)nnz)
     mexErrMsgIdAndTxt((prefix + ":badLength").c_str(), "bad nnz length %d",
                       nnz);
   if (*rptr == 1) {
     // convert to zero based
     for (mwSize i = 0; i < n + 1; ++i) --rptr[i];
-    for (int i = 0; i < nnz; ++i) --cptr[i];
+    for (mwSize i = 0; i < (mwSize)nnz; ++i) --cptr[i];
   }
   *rptr_ = rptr;
   *cptr_ = cptr;
-  *vptr_ = (ValueType *)mxGetData(val);
   *n_ = n;
 }
 
@@ -361,13 +324,19 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
                         const mxArray *val, const mxArray *opt) {
   using data_t = HIFIR4M_Database<IsMixed, ValueType>;
 
+  if (!std::is_floating_point<ValueType>::value && !mxIsComplex(val))
+    mexErrMsgIdAndTxt("hifir4m:factorize:complex",
+                      "input val array is not complex.");
+
   auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hifir4m:factorize"), rowptr, colind, val,
-                         &rptr, &cptr, &vptr, &n);
+  std::vector<ValueType> buf;  // only used in complex and no interleaved
+  convert_crs_mx2pointer(std::string("hifir4m:factorize"), rowptr, colind,
+                         &rptr, &cptr, &n);
+  get_num_data(val, &vptr, buf);
 
   // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
@@ -410,6 +379,9 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs,
 
   if (!data->M)
     mexErrMsgIdAndTxt("hifir4m:M_solve:emptyM", "M has not yet factorized");
+  if (!std::is_floating_point<ValueType>::value && !mxIsComplex(rhs) &&
+      !mxIsComplex(lhs))
+    mexErrMsgIdAndTxt("hifir4m:M_solve:complex", "input array is not complex.");
 
   if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
     mexErrMsgIdAndTxt("hifir4m:M_solve:badRhsSize",
@@ -419,8 +391,13 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs,
                       "rhs size does not agree with lhs or M");
 
   using array_t = hif::Array<ValueType>;
-  array_t b(data->M->nrows(), (ValueType *)mxGetData(rhs), true),
-      x(data->M->nrows(), (ValueType *)mxGetData(lhs), true);
+  ValueType *rhs_ptr, *lhs_ptr;
+  // only needed in non-interleaved complex
+  std::vector<ValueType> rhs_buf, lhs_buf;
+  get_num_data(rhs, &rhs_ptr, rhs_buf);
+  get_num_data(lhs, &lhs_ptr, lhs_buf);
+  array_t b(data->M->nrows(), rhs_ptr, true),
+      x(data->M->nrows(), lhs_ptr, true);
   hif::DefaultTimer timer;
   timer.start();
   try {
@@ -430,9 +407,11 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs,
                       "M_solve failed with message:\n%s", e.what());
   }
   timer.finish();
+  set_num_data(lhs, lhs_ptr);
   return timer.time();  // give M solve time to the user
 }
 
+#if 0
 /**
  * @brief Accessing inv(M) with 2 RHS (for complex conjugate pair)
  *
@@ -472,6 +451,7 @@ inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs,
   timer.finish();
   return timer.time();  // give M solve time to the user
 }
+#endif
 
 // M solve with inner iteration
 
@@ -498,6 +478,10 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
                       const std::size_t r = static_cast<std::size_t>(-1)) {
   if (N < 2) return M_solve<IsMixed, ValueType>(id, rhs, lhs);  // quick return
 
+  if (!std::is_floating_point<ValueType>::value && !mxIsComplex(rhs) &&
+      !mxIsComplex(lhs) && !mxIsComplex(val))
+    mexErrMsgIdAndTxt("hifir4m:M_solve:complex", "input array is not complex.");
+
   auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
   if (!data->M)
@@ -514,14 +498,21 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
+  std::vector<ValueType> buf;
   convert_crs_mx2pointer(std::string("hifir4m:M_solve_inner"), rowptr, colind,
-                         val, &rptr, &cptr, &vptr, &n);
+                         &rptr, &cptr, &n);
+  get_num_data(val, &vptr, buf);
 
   // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   using array_t = hif::Array<ValueType>;
-  array_t b(data->M->nrows(), (ValueType *)mxGetData(rhs), true),
-      x(data->M->nrows(), (ValueType *)mxGetData(lhs), true);
+  ValueType *rhs_ptr, *lhs_ptr;
+  // only needed in non-interleaved complex
+  std::vector<ValueType> rhs_buf, lhs_buf;
+  get_num_data(rhs, &rhs_ptr, rhs_buf);
+  get_num_data(lhs, &lhs_ptr, lhs_buf);
+  array_t b(data->M->nrows(), rhs_ptr, true),
+      x(data->M->nrows(), lhs_ptr, true);
   hif::DefaultTimer timer;
   try {
     data->M->hifir(A, b, N, x, trans, r);  // call inner iteration kernel
@@ -530,6 +521,7 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
                       "M_solve_inner failed with message:\n%s", e.what());
   }
   timer.finish();
+  set_num_data(lhs, lhs_ptr);
   return timer.time();  // give M solve time to the user
 }
 
@@ -554,7 +546,9 @@ inline double M_multiply(int id, const mxArray *rhs, mxArray *lhs,
 
   if (!data->M)
     mexErrMsgIdAndTxt("hifir4m:M_multiply:emptyM", "M has not yet factorized");
-
+  if (!std::is_floating_point<ValueType>::value && !mxIsComplex(rhs) &&
+      !mxIsComplex(lhs))
+    mexErrMsgIdAndTxt("hifir4m:M_solve:complex", "input array is not complex.");
   if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
     mexErrMsgIdAndTxt("hifir4m:M_multiply:badRhsSize",
                       "rhs/lhs must be column vector");
@@ -563,8 +557,13 @@ inline double M_multiply(int id, const mxArray *rhs, mxArray *lhs,
                       "rhs size does not agree with lhs or M");
 
   using array_t = hif::Array<ValueType>;
-  array_t b(data->M->nrows(), (ValueType *)mxGetData(rhs), true),
-      x(data->M->nrows(), (ValueType *)mxGetData(lhs), true);
+  ValueType *rhs_ptr, *lhs_ptr;
+  // only needed in non-interleaved complex
+  std::vector<ValueType> rhs_buf, lhs_buf;
+  get_num_data(rhs, &rhs_ptr, rhs_buf);
+  get_num_data(lhs, &lhs_ptr, lhs_buf);
+  array_t b(data->M->nrows(), rhs_ptr, true),
+      x(data->M->nrows(), lhs_ptr, true);
   hif::DefaultTimer timer;
   timer.start();
   try {
@@ -574,6 +573,7 @@ inline double M_multiply(int id, const mxArray *rhs, mxArray *lhs,
                       "M_multiply failed with message:\n%s", e.what());
   }
   timer.finish();
+  set_num_data(lhs, lhs_ptr);
   return timer.time();  // give M solve time to the user
 }
 
@@ -605,6 +605,9 @@ inline std::tuple<int, int, double, double> KSP_solve(
     const int iter_refines = 1, const int *cst_nsp = nullptr,
     const char *fname = nullptr, const mxArray *fhdl = nullptr) {
   using ksp_t = typename HIFIR4M_Database<IsMixed, ValueType>::solver_t;
+  if (!std::is_floating_point<ValueType>::value && !mxIsComplex(rhs) &&
+      !mxIsComplex(lhs) && !mxIsComplex(val))
+    mexErrMsgIdAndTxt("hifir4m:M_solve:complex", "input array is not complex.");
 
   auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
   if (!data->M)
@@ -617,8 +620,10 @@ inline std::tuple<int, int, double, double> KSP_solve(
   mwSize n;
   integer_type *rptr, *cptr;
   ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hifir4m:KSP_solve"), rowptr, colind, val,
-                         &rptr, &cptr, &vptr, &n);
+  std::vector<ValueType> buf;
+  convert_crs_mx2pointer(std::string("hifir4m:KSP_solve"), rowptr, colind,
+                         &rptr, &cptr, &n);
+  get_num_data(val, &vptr, buf);
 
   if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows() ||
       data->M->nrows() != n)
@@ -633,8 +638,12 @@ inline std::tuple<int, int, double, double> KSP_solve(
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   // arrays
   using array_t = hif::Array<ValueType>;
-  array_t b(n, (ValueType *)mxGetData(rhs), true),
-      x(n, (ValueType *)mxGetData(lhs), true);
+  ValueType *rhs_ptr, *lhs_ptr;
+  // only needed in non-interleaved complex
+  std::vector<ValueType> rhs_buf, lhs_buf;
+  get_num_data(rhs, &rhs_ptr, rhs_buf);
+  get_num_data(lhs, &lhs_ptr, lhs_buf);
+  array_t b(n, rhs_ptr, true), x(n, lhs_ptr, true);
 
   if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
   if (max_iter > 0) ksp.set_maxit(max_iter);
@@ -681,6 +690,7 @@ inline std::tuple<int, int, double, double> KSP_solve(
   const double res = data->ksp->get_resids().back();
   data->ksp.reset();                       // free
   if (data->M->nsp) data->M->nsp.reset();  // release const nullspace filter
+  set_num_data(lhs, lhs_ptr);
   return std::make_tuple(flag, (int)iters, res, tt);
 }
 
@@ -824,6 +834,9 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
                                      "F",     "s_row", "s_col", "p",
                                      "p_inv", "q",     "q_inv"};
 
+  value_t *vptr1, *vptr2, *vptr3, *vptr4, *vptr5;
+  std::vector<value_t> vbuf1, vbuf2, vbuf3, vbuf4, vbuf5;
+
   // initialize cell array (hilu)
   *hilu = mxCreateCellMatrix(data->M->levels(), 1);
   int index(0);
@@ -873,18 +886,28 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
          *q = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
          *q_inv = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL);
 
+    get_num_data(L_val, &vptr1, vbuf1);
+    get_num_data(D_B, &vptr2, vbuf2);
+    get_num_data(U_val, &vptr3, vbuf3);
+    get_num_data(E_val, &vptr4, vbuf4);
+    get_num_data(F_val, &vptr5, vbuf5);
     iter->template export_sparse_data<crs_t>(
         (integer_type *)mxGetData(L_row_ptr),
-        (integer_type *)mxGetData(L_col_ind), (value_t *)mxGetData(L_val),
-        (value_t *)mxGetData(D_B), (integer_type *)mxGetData(U_row_ptr),
-        (integer_type *)mxGetData(U_col_ind), (value_t *)mxGetData(U_val),
+        (integer_type *)mxGetData(L_col_ind), vptr1, vptr2,
+        (integer_type *)mxGetData(U_row_ptr),
+        (integer_type *)mxGetData(U_col_ind), vptr3,
         (integer_type *)mxGetData(E_row_ptr),
-        (integer_type *)mxGetData(E_col_ind), (value_t *)mxGetData(E_val),
+        (integer_type *)mxGetData(E_col_ind), vptr4,
         (integer_type *)mxGetData(F_row_ptr),
-        (integer_type *)mxGetData(F_col_ind), (value_t *)mxGetData(F_val),
+        (integer_type *)mxGetData(F_col_ind), vptr5,
         (scalar_type *)mxGetData(s_row), (scalar_type *)mxGetData(s_col),
         (integer_type *)mxGetData(p), (integer_type *)mxGetData(p_inv),
         (integer_type *)mxGetData(q), (integer_type *)mxGetData(q_inv));
+    set_num_data(L_val, vptr1);
+    set_num_data(D_B, vptr2);
+    set_num_data(U_val, vptr3);
+    set_num_data(E_val, vptr4);
+    set_num_data(F_val, vptr5);
 
     // increment index by 1 for MATLAB/Fortran index base
     std::for_each((integer_type *)mxGetData(L_row_ptr),
@@ -1005,8 +1028,9 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
       iter->inquire_or_export_dense(dummy, nrows, ncols, destroy);
       auto *mat = mxCreateUninitNumericMatrix(
           nrows, ncols, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, DTYPE);
-      iter->inquire_or_export_dense((value_t *)mxGetData(mat), nrows, ncols,
-                                    destroy);
+      get_num_data(mat, &vptr1, vbuf1);
+      iter->inquire_or_export_dense(vptr1, nrows, ncols, destroy);
+      set_num_data(mat, vptr1);
       mxSetCell(*hilu, index, mat);
     }
   }
