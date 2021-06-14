@@ -18,6 +18,7 @@
 */
 
 #include <complex>
+#include <type_traits>
 
 #include "mex.h"
 
@@ -29,11 +30,64 @@ typedef mwSignedIndex integer_type;
 #define INT_TYPE mxINT64_CLASS
 #endif
 
-template <class ValueType>
-static void convert_ijv2crs(const mwSize n, const mwSize nnz,
-                            const integer_type *rows, const integer_type *cols,
-                            const ValueType *vs, integer_type *rowptr,
-                            integer_type *colind, ValueType *vals);
+template <bool IsReal>
+static inline typename std::enable_if<IsReal, void>::type convert_ijv2crs(
+    const mwSize n, const mwSize nnz, const integer_type *rows,
+    const integer_type *cols, const mxArray *vs, integer_type *rowptr,
+    integer_type *colind, mxArray *vals) {
+  // handle Fortran indices
+  for (mwSize i(0); i < nnz; ++i)
+    ++rowptr[rows[i]];  // implicit +1 per Fortran index
+  rowptr[0] = 0;
+  for (mwSize i(0); i < n; ++i) rowptr[i + 1] += rowptr[i];
+  --rowptr;
+  double *vals_ptr = mxGetPr(vals), *vs_ptr = (double *)mxGetPr(vs);
+  for (mwSize i(0); i < nnz; ++i) {
+    const auto idx = rowptr[rows[i]];
+    vals_ptr[idx] = vs_ptr[i];
+    colind[idx] = cols[i] - 1;
+    ++rowptr[rows[i]];
+  }
+  // revert rowptr (notice that the address has been shiftted leftward by 1)
+  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1];
+  rowptr[1] = 0;
+}
+
+template <bool IsReal>
+static inline typename std::enable_if<!IsReal, void>::type convert_ijv2crs(
+    const mwSize n, const mwSize nnz, const integer_type *rows,
+    const integer_type *cols, const mxArray *vs, integer_type *rowptr,
+    integer_type *colind, mxArray *vals) {
+  // complex arithmetic
+
+  // handle Fortran indices
+  for (mwSize i(0); i < nnz; ++i)
+    ++rowptr[rows[i]];  // implicit +1 per Fortran index
+  rowptr[0] = 0;
+  for (mwSize i(0); i < n; ++i) rowptr[i + 1] += rowptr[i];
+  --rowptr;
+#if defined(MX_HAS_INTERLEAVED_COMPLEX) && MX_HAS_INTERLEAVED_COMPLEX
+  std::complex<double> *vals_ptr = (std::complex<double> *)mxGetData(vals),
+                       *vs_ptr = (std::complex<double> *)mxGetData(vs);
+#else
+  double *vals_r_ptr = mxGetPr(vals), *vals_i_ptr = mxGetPi(vals),
+         *vs_r_ptr = (double *)mxGetPr(vs), *vs_i_ptr = mxGetPi(vs);
+#endif
+  for (mwSize i(0); i < nnz; ++i) {
+    const auto idx = rowptr[rows[i]];
+#if defined(MX_HAS_INTERLEAVED_COMPLEX) && MX_HAS_INTERLEAVED_COMPLEX
+    vals_ptr[idx] = vs_ptr[i];
+#else
+    vals_r_ptr[idx] = vs_r_ptr[i];
+    vals_i_ptr[idx] = vs_i_ptr[i];
+#endif
+    colind[idx] = cols[i] - 1;
+    ++rowptr[rows[i]];
+  }
+  // revert rowptr (notice that the address has been shiftted leftward by 1)
+  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1];
+  rowptr[1] = 0;
+}
 
 // convert IJV format from MATLAB built-in find to CRS
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
@@ -58,37 +112,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   // convert
   if (!mxIsComplex(prhs[3]))
-    convert_ijv2crs(n, nnz, (const integer_type *)mxGetData(prhs[1]),
-                    (const integer_type *)mxGetData(prhs[2]), mxGetPr(prhs[3]),
-                    (integer_type *)mxGetData(plhs[0]),
-                    (integer_type *)mxGetData(plhs[1]), mxGetPr(plhs[2]));
+    convert_ijv2crs<true>(n, nnz, (const integer_type *)mxGetData(prhs[1]),
+                          (const integer_type *)mxGetData(prhs[2]), prhs[3],
+                          (integer_type *)mxGetData(plhs[0]),
+                          (integer_type *)mxGetData(plhs[1]), plhs[2]);
   else
-    convert_ijv2crs(n, nnz, (const integer_type *)mxGetData(prhs[1]),
-                    (const integer_type *)mxGetData(prhs[2]),
-                    (const std::complex<double> *)mxGetData(prhs[3]),
-                    (integer_type *)mxGetData(plhs[0]),
-                    (integer_type *)mxGetData(plhs[1]),
-                    (std::complex<double> *)mxGetData(plhs[2]));
-}
-
-template <class ValueType>
-static void convert_ijv2crs(const mwSize n, const mwSize nnz,
-                            const integer_type *rows, const integer_type *cols,
-                            const ValueType *vs, integer_type *rowptr,
-                            integer_type *colind, ValueType *vals) {
-  // handle Fortran indices
-  for (mwSize i(0); i < nnz; ++i)
-    ++rowptr[rows[i]];  // implicit +1 per Fortran index
-  rowptr[0] = 0;
-  for (mwSize i(0); i < n; ++i) rowptr[i + 1] += rowptr[i];
-  --rowptr;
-  for (mwSize i(0); i < nnz; ++i) {
-    const auto idx = rowptr[rows[i]];
-    vals[idx] = vs[i];
-    colind[idx] = cols[i] - 1;
-    ++rowptr[rows[i]];
-  }
-  // revert rowptr (notice that the address has been shiftted leftward by 1)
-  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1];
-  rowptr[1] = 0;
+    convert_ijv2crs<false>(n, nnz, (const integer_type *)mxGetData(prhs[1]),
+                           (const integer_type *)mxGetData(prhs[2]), prhs[3],
+                           (integer_type *)mxGetData(plhs[0]),
+                           (integer_type *)mxGetData(plhs[1]), plhs[2]);
 }
