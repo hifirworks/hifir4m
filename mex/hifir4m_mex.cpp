@@ -19,6 +19,10 @@
 
 #include "hifir4m.hpp"
 
+#if defined(MX_HAS_INTERLEAVED_COMPLEX) && MX_HAS_INTERLEAVED_COMPLEX
+    #error "hifir4m assumes non-interleaved complex arrays. Please add -R2017b option to mex."
+#endif
+
 namespace hifir4m {
 enum {
   HIFIR4M_FACTORIZE = HIFIR4M_DESTROY + 1,     ///< Factorize
