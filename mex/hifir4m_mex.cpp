@@ -209,7 +209,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxCreateStructMatrix(1, 1, 11, fac_info_names);
     for (int i = 0; i < 11; ++i) {
       auto mx_ptr = mxCreateUninitNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
-      *(mxUint64*)mxGetData(mx_ptr) = info[i];
+      *(std::size_t*)mxGetData(mx_ptr) = info[i];
       mxSetFieldByNumber(plhs[0], 0, i, mx_ptr);
     }
     if (nlhs > 1) plhs[1] = mxCreateDoubleScalar(tt);
@@ -241,7 +241,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxCreateStructMatrix(1, 1, 11, fac_info_names);
     for (int i = 0; i < 11; ++i) {
       auto mx_ptr = mxCreateUninitNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
-      *(mxUint64*)mxGetData(mx_ptr) = info[i];
+      *(std::size_t*)mxGetData(mx_ptr) = info[i];
       mxSetFieldByNumber(plhs[0], 0, i, mx_ptr);
     }
     return;

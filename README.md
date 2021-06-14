@@ -26,7 +26,7 @@ To access the intermediate-level interfaces of `hifir4m`, please see `gmresHifir
 
 `HIFIR`, `hifir4m`, and `hifir4py` are developed by the NumGeom Research Group at Stony Brook University.
 
-The software suite is released under a dual-license model. For academic users, individual users, or open-source software developers, you can use HIFIR under the GLPv3+ license free of charge for research and evaluation purpose. For commercial users, separate commercial licenses are available through the Stony Brook University.  For inqueries regarding commercial licenses, please contact Prof. Xiangmin Jiao <xiangmin.jiao@stonybrook.edu>.
+The software suite is released under a dual-license model. For academic users, individual users, or open-source software developers, you can use HIFIR under the GPLv3+ license free of charge for research and evaluation purpose. For commercial users, separate commercial licenses are available through the Stony Brook University.  For inqueries regarding commercial licenses, please contact Prof. Xiangmin Jiao <xiangmin.jiao@stonybrook.edu>.
 
 ## How to Cite `HIFIR` ##
 If you use `HIFIR`,  `hifir4m`, or `hifir4py` in your research for nonsingular systems, please cite the `HILUCSI` paper:
