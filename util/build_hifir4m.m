@@ -5,14 +5,14 @@ if nargin < 1; force = false; end
 mods = {'mex/hifir4m_mex', ...
     'matlab/private/hifir4m_ijv2crs', ...
     'matlab/private/hifir4m_isint64'};
-    
+
 if isoctave
     mexCmd = 'mmex';
     sysLibs = ' -llapack -lblas';
 else
     mexCmd = 'mex';
     if ispc
-        sysLibs = ' libmwlapack.lib libmwblas.lib';
+        sysLibs = ' -DWLS_FC=1 LINKLIBS=''-llibmwmathutil $LINKLIBS''';
     else
         sysLibs = ' -lmwlapack -lmwblas';
     end
