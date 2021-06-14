@@ -25,8 +25,8 @@ for m = 1:length(mods)
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
     % assume GCC openmp
     cmd = [mexCmd ' ' ...
-        'LDFLAGS="' getenv('LDFLAGS') ' -fopenmp" ' ... % OpenMP linker flag
-        'CXXFLAGS="' getenv('CXXFLAGS') ' -m64 -march=native -O3 -std=c++11 ' ...
+        'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
+        'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
         '-I' relativepath(fullfile(hifir4m_root, 'hifir', 'src')) ' ' ... % include
         '-O -output ' mx ' ' src sysLibs];  % link to system libraries

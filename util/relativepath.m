@@ -16,7 +16,7 @@ function  rel_path = relativepath( tgt_path, act_path )
 %      relativepath( 'C:\local\data\matlab' , 'C:\local' ) = '.\data\matlab\'
 %      relativepath( 'A:\MyProject\'        , 'C:\local' ) = 'a:\myproject\'
 %
-%      relativepath( 'C:\local\data\matlab' , cd         ) is the same as
+%      relativepath( 'C:\local\data\matlab' , pwd        ) is the same as
 %      relativepath( 'C:\local\data\matlab'              )
 %
 %   See also:  ABSOLUTEPATH PATH
@@ -26,7 +26,7 @@ function  rel_path = relativepath( tgt_path, act_path )
 
 % 2nd parameter is optional:
 if  nargin < 2
-   act_path = cd;
+   act_path = pwd;
 end
 
 % Predefine return string:

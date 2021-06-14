@@ -25,11 +25,6 @@
 // mex
 #include "mex.h"
 
-// See
-// https://stackoverflow.com/questions/26271154/how-can-i-make-a-mex-function-printf-while-its-running
-// this is a C++ function
-extern bool ioFlush(void);
-
 // configure the printing to matlab command window stead of stdout/stderr
 #ifdef HIF_STDOUT
 #undef HIF_STDOUT
@@ -41,13 +36,11 @@ extern bool ioFlush(void);
   do {                    \
     mexPrintf(__msg);     \
     mexPrintf("\n");      \
-    ioFlush();            \
   } while (false)
 #define HIF_STDERR(__msg) \
   do {                    \
     mexWarnMsgTxt(__msg); \
     mexWarnMsgTxt("\n");  \
-    ioFlush();            \
   } while (false)
 
 // No ASCII color

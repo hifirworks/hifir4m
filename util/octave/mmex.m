@@ -206,11 +206,11 @@ if ~isempty(defs.CPPFLAGS)
     macros = [macros 'export CPPFLAGS=''' strtrim(defs.CPPFLAGS) '''; '];
 end
 if ~isempty(defs.CFLAGS) || ~isempty(defs.COPTIMFLAGS) || ~isempty(defs.CDEBUGFLAGS)
-    macros = [macros 'export CFLAGS=''' strtrim(defs.CFLAGS) ' ' ...
+    macros = [macros 'export CFLAGS=''' strtrim(strrep(defs.CFLAGS, '$CFLAGS', '')) ' ' ...
         strtrim(defs.COPTIMFLAGS) ' ' strtrim(defs.CDEBUGFLAGS) '''; '];
 end
 if ~isempty(defs.CXXFLAGS) || ~isempty(defs.CXXOPTIMFLAGS) || ~isempty(defs.CXXDEBUGFLAGS)
-    macros = [macros 'export CXXFLAGS=''' strtrim(defs.CXXFLAGS) ' ' ...
+    macros = [macros 'export CXXFLAGS=''' strtrim(strrep(defs.CXXFLAGS, '$CXXFLAGS', '')) ' ' ...
         strtrim(defs.CXXOPTIMFLAGS) ' ' strtrim(defs.CXXDEBUGFLAGS) '''; '];
 elseif ~isempty(defs.CFLAGS)
     macros = [macros 'export CXXFLAGS=''' strtrim(defs.CFLAGS) '''; '];
@@ -223,7 +223,7 @@ elseif ~isempty(defs.CC) && strfind(defs.CC, 'mpicc')
 end
 
 if ~isempty(defs.LDFLAGS)
-    macros = [macros 'export LDFLAGS=''' strtrim(defs.LDFLAGS) '''; '];
+    macros = [macros 'export LDFLAGS=''' strtrim(strrep(defs.LDFLAGS, '$LDFLAGS', '')) '''; '];
 end
 if ~isempty(defs.LINKLIBS)
     cmd = [cmd ' ' strtrim(strrep(defs.LINKLIBS, '$LINKLIBS', ''))];
