@@ -1,10 +1,13 @@
-function build_hifir4m(force)
-% script for building HIFIR4M
+function build_hifir4m(varargin)
+% script for building hifir4m for MATLAB and GNU Octave
 
-if nargin < 1; force = false; end
+if nargin < 1
+    force = false;
+end
+
 mods = {'mex/hifir4m_mex', ...
-    'matlab/private/hifir4m_ijv2crs', ...
-    'matlab/private/hifir4m_isint64'};
+    'mex/hifir4m_ijv2crs', ...
+    'mex/hifir4m_isint64'};
 
 if isoctave
     mexCmd = 'mmex';

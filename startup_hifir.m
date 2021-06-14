@@ -2,8 +2,9 @@ function startup_hifir
 % Startup script of hifir4m for MATLAB and Octave
 
 addpath(hifir4m_root);
-addpath([hifir4m_root '/matlab']);
+addpath([hifir4m_root '/api']);
 addpath([hifir4m_root '/util']);
+addpath([hifir4m_root '/mex']);
 
 if exist('OCTAVE_VERSION', 'builtin')
     more off;
