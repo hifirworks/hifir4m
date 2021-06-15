@@ -89,7 +89,7 @@ function mmex(varargin)
 %% Look for mkoctfile
 if exist('__octave_config_info__', 'builtin')
   % octave_config_info is depreciated in 4.2.1
-  octave_config_info = @__octave_config_info__;
+  octave_config_info = @__octave_config_info__; %#ok<BADCH>
 end
 
 bindir = octave_config_info('bindir');
@@ -132,8 +132,8 @@ while i<=nargin
             error('Argument -output must follow a file name.');
         end
     elseif isequal(varargin{i}, '-O')
-        defs.COPTIMFLAGS = [defs.COPTIMFLAGS ' -O2']; %#ok<*AGROW>
-        defs.CXXOPTIMFLAGS = [defs.CXXOPTIMFLAGS ' -O2']; %#ok<*AGROW>
+        defs.COPTIMFLAGS = [defs.COPTIMFLAGS ' -O2 -DNDEBUG'];
+        defs.CXXOPTIMFLAGS = [defs.CXXOPTIMFLAGS ' -O2 -DNDEBUG'];
     elseif varargin{i}(1)~='-' && ~isempty(strfind(varargin{i}, '='))
         index = strfind(varargin{i}, '=');
         var = varargin{i}(1:index(1)-1);
@@ -206,12 +206,14 @@ if ~isempty(defs.CPPFLAGS)
     macros = [macros 'export CPPFLAGS=''' strtrim(defs.CPPFLAGS) '''; '];
 end
 if ~isempty(defs.CFLAGS) || ~isempty(defs.COPTIMFLAGS) || ~isempty(defs.CDEBUGFLAGS)
-    macros = [macros 'export CFLAGS=''' strtrim(strrep(defs.CFLAGS, '$CFLAGS', '')) ' ' ...
-        strtrim(defs.COPTIMFLAGS) ' ' strtrim(defs.CDEBUGFLAGS) '''; '];
+    macros = [macros 'export CFLAGS=''' strtrim(defs.COPTIMFLAGS) ' ' ...
+        strtrim(strrep(defs.CFLAGS, '$CFLAGS', '')) ' ' ...
+        strtrim(defs.CDEBUGFLAGS) '''; '];
 end
 if ~isempty(defs.CXXFLAGS) || ~isempty(defs.CXXOPTIMFLAGS) || ~isempty(defs.CXXDEBUGFLAGS)
-    macros = [macros 'export CXXFLAGS=''' strtrim(strrep(defs.CXXFLAGS, '$CXXFLAGS', '')) ' ' ...
-        strtrim(defs.CXXOPTIMFLAGS) ' ' strtrim(defs.CXXDEBUGFLAGS) '''; '];
+    macros = [macros 'export CXXFLAGS=''' strtrim(defs.CXXOPTIMFLAGS) ' ' ...
+        strtrim(strrep(defs.CXXFLAGS, '$CXXFLAGS', '')) ' ' ...
+        strtrim(defs.CXXDEBUGFLAGS) '''; '];
 elseif ~isempty(defs.CFLAGS)
     macros = [macros 'export CXXFLAGS=''' strtrim(defs.CFLAGS) '''; '];
 end
@@ -239,7 +241,7 @@ else
     if verbose
         disp(cmd);
     end
-    [status, text] = unix(cmd, '-echo');
+    [status, ~] = unix(cmd, '-echo');
     if status || target && ~exist(target, 'file')
         error('mkoctfile failed');
      end

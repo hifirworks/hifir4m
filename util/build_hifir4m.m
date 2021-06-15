@@ -10,29 +10,29 @@ mods = {'mex/hifir4m_mex', ...
     'mex/hifir4m_isint64'};
 
 if isoctave
-    mexCmd = 'mmex';
-    sysLibs = ' -llapack -lblas';
+    mexCmd = 'mmex -O';
+    sysFlags = ' -llapack -lblas';
 else
-    mexCmd = 'mex';
+    mexCmd = 'mex -O';
     if ispc
-        sysLibs = ' -DHIF_FC=1 -R2018a LINKLIBS=''-llibmwmathutil $LINKLIBS''';
+        sysFlags = ' -DHIF_FC=1 -R2018a LINKLIBS=''-llibmwmathutil $LINKLIBS''';
     else
-        sysLibs = ' -R2018a -lmwlapack -lmwblas -lmwservices';
+        sysFlags = ' -R2018a -lmwlapack -lmwblas -lmwservices';
     end
 end
 
 for m = 1:length(mods)
     md = mods{m};
-    src = relativepath(fullfile(hifir4m_root, [md '.cpp']));
-    mx = relativepath(fullfile(hifir4m_root, [md '.' mexext]));
+    src = ['''' fullfile(hifir4m_root, [md '.cpp']) ''''];
+    mx = ['''' fullfile(hifir4m_root, [md '.' mexext]) ''''];
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
     % assume GCC openmp
     cmd = [mexCmd ' ' ...
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
-        '-I' relativepath(fullfile(hifir4m_root, 'hifir', 'src')) ' ' ... % include
-        '-O -output ' mx ' ' src sysLibs];  % link to system libraries
+        '-I''' fullfile(hifir4m_root, 'hifir', 'src') ''' ' ... % include
+        '-output ' mx ' ' src sysFlags];  % link to system libraries
     disp(cmd);
     eval(cmd);
 end
