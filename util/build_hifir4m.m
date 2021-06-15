@@ -15,9 +15,9 @@ if isoctave
 else
     mexCmd = 'mex';
     if ispc
-        sysLibs = ' -DHIF_FC=1 -R2017b LINKLIBS=''-llibmwmathutil $LINKLIBS''';
+        sysLibs = ' -DHIF_FC=1 -R2018a LINKLIBS=''-llibmwmathutil $LINKLIBS''';
     else
-        sysLibs = ' -R2017b -lmwlapack -lmwblas';
+        sysLibs = ' -R2018a -lmwlapack -lmwblas -lmwservices';
     end
 end
 

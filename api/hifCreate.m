@@ -1,4 +1,4 @@
-function [hdl, info, time] = hifCreate(A, S, varargin)
+function [hdl, varargout] = hifCreate(A, S, varargin)
 % hifCreate  Creates a HIFIR preconditioner for a given matrix
 %
 %    hdl = hifCreate(A [, S])
@@ -68,10 +68,16 @@ else
     Sstruct.val = double(S.val);
 end
 
-[time, info] = hifir4m_mex(HifEnum.FACTORIZE, hif, ...
+[varargout{1:nargout-1}] = hifir4m_mex(HifEnum.FACTORIZE, hif, ...
     Sstruct.row_ptr, Sstruct.col_ind, Sstruct.val, params);
 
 %% Create HIFIR handle and return back to MATLAB
 hdl = Hifir(hif, params, Astruct);
+
+if nargout>1
+    vals = namedargs2cell(varargout{1});
+    varargout{1} = struct('nrows_A', numel(Astruct.row_ptr)-1, ...
+        'nnz_A', numel(Astruct.col_ind), 'nnz_M', vals{2:end});
+end
 
 end

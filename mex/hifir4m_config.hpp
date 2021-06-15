@@ -32,10 +32,17 @@
 #ifdef HIF_STDERR
 #undef HIF_STDERR
 #endif
+
+#if !defined(HAVE_OCTAVE) || !defined(__unix__)
+#define ioFlush() mexEvalString("drawnow;")
+#else
+#define ioFlush()
+#endif
 #define HIF_STDOUT(__msg) \
   do {                    \
     mexPrintf(__msg);     \
     mexPrintf("\n");      \
+    ioFlush(); \
   } while (false)
 #define HIF_STDERR(__msg) \
   do {                    \
