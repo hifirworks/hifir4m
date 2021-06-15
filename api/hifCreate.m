@@ -50,6 +50,7 @@ else
     end
     Astruct.val = double(A.val);
 end
+Astruct.nrows = int32(numel(Astruct.row_ptr)-1);
 
 if nargin <= 1 || isempty(S)
     Sstruct = Astruct;

@@ -61,10 +61,13 @@
 #endif  // HIF_THROW
 
 // lapack integer
-#if ~defined(HAVE_OCTAVE)
 #ifdef HIF_LAPACK_INT
 #undef HIF_LAPACK_INT
 #endif
+
+#ifdef HAVE_OCTAVE
+#define HIF_LAPACK_INT int
+#else
 #define HIF_LAPACK_INT mwSignedIndex
 #endif
 

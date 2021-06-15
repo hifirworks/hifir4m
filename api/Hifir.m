@@ -31,7 +31,7 @@ classdef Hifir < handle
 
         function varargout = apply(h, x, varargin)
             % Apply the preconditioner
-            [varargout{:}] = hifApply(h, x, varargin{:});
+            [varargout{1:nargout}] = hifApply(h, x, varargin{:});
         end
 
         function delete(h)
