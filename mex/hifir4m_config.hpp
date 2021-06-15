@@ -1,19 +1,19 @@
 /*
                 This file is part of HIFIR4M project
 
-    Copyright (C) 2019 NumGeom Group at Stony Brook University
+    Copyright (C) 2019--2021 NumGeom Group at Stony Brook University
 
     This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
+    You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
@@ -25,11 +25,6 @@
 // mex
 #include "mex.h"
 
-// See
-// https://stackoverflow.com/questions/26271154/how-can-i-make-a-mex-function-printf-while-its-running
-// this is a C++ function
-extern bool ioFlush(void);
-
 // configure the printing to matlab command window stead of stdout/stderr
 #ifdef HIF_STDOUT
 #undef HIF_STDOUT
@@ -37,17 +32,22 @@ extern bool ioFlush(void);
 #ifdef HIF_STDERR
 #undef HIF_STDERR
 #endif
+
+#if !defined(HAVE_OCTAVE) || !defined(__unix__)
+#define ioFlush() mexEvalString("drawnow;")
+#else
+#define ioFlush()
+#endif
 #define HIF_STDOUT(__msg) \
   do {                    \
     mexPrintf(__msg);     \
     mexPrintf("\n");      \
-    ioFlush();            \
+    ioFlush(); \
   } while (false)
 #define HIF_STDERR(__msg) \
   do {                    \
     mexWarnMsgTxt(__msg); \
     mexWarnMsgTxt("\n");  \
-    ioFlush();            \
   } while (false)
 
 // No ASCII color
@@ -64,6 +64,11 @@ extern bool ioFlush(void);
 #ifdef HIF_LAPACK_INT
 #undef HIF_LAPACK_INT
 #endif
+
+#ifdef HAVE_OCTAVE
+#define HIF_LAPACK_INT int
+#else
 #define HIF_LAPACK_INT mwSignedIndex
+#endif
 
 #endif  // HIFIR4M_CONFIG_HPP_

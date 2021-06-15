@@ -37,9 +37,9 @@ function opts = hifir4m_create_params(varargin)
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
-persistent fnames
-if isempty(fnames)
-    fnames = {'tau_L', 'tau_U', 'kappa_d', 'kappa', 'alpha_L', 'alpha_U', ...
+persistent fields
+if isempty(fields)
+    fields = {'tau_L', 'tau_U', 'kappa_d', 'kappa', 'alpha_L', 'alpha_U', ...
         'rho', 'c_d', 'c_h', 'N', 'verbose', 'rf_par', 'reorder', 'saddle', ...
         'check', 'pre_scale', 'symm_pre_lvls', 'threads', 'mumps_blr', ...
         'fat_schur_1st', 'rrqr_cond', 'pivot', 'gamma', 'beta', 'is_symm', ...
@@ -77,9 +77,9 @@ parse(p, varargin{:});
 sorted_opts = p.Results;
 % NOTE parser gives sorted structure
 opts = struct;
-for idx = 1:length(fnames)
-    f = fnames{idx};
-    opts = setfield(opts, f, getfield(sorted_opts, f));
+for idx = 1:length(fields)
+    f = fields{idx};
+    opts.(f) = sorted_opts.(f);
 end
 
 %-------------------------- END MAIN CODE -------------------------------%

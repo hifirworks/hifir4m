@@ -1,20 +1,23 @@
-function build_hifir4m(force)
-% script for building HIFIR4M
+function build_hifir4m(varargin)
+% script for building hifir4m for MATLAB and GNU Octave
 
-if nargin < 1; force = false; end
+if nargin < 1
+    force = false;
+end
+
 mods = {'mex/hifir4m_mex', ...
-    'matlab/private/hifir4m_ijv2crs', ...
-    'matlab/private/hifir4m_isint64'};
-    
+    'mex/hifir4m_ijv2crs', ...
+    'mex/hifir4m_isint64'};
+
 if isoctave
     mexCmd = 'mmex';
     sysLibs = ' -llapack -lblas';
 else
     mexCmd = 'mex';
     if ispc
-        sysLibs = ' libmwlapack.lib libmwblas.lib';
+        sysLibs = ' -DHIF_FC=1 -R2018a LINKLIBS=''-llibmwmathutil $LINKLIBS''';
     else
-        sysLibs = ' -lmwlapack -lmwblas';
+        sysLibs = ' -R2018a -lmwlapack -lmwblas -lmwservices';
     end
 end
 
@@ -25,8 +28,8 @@ for m = 1:length(mods)
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
     % assume GCC openmp
     cmd = [mexCmd ' ' ...
-        'LDFLAGS="' getenv('LDFLAGS') ' -fopenmp" ' ... % OpenMP linker flag
-        'CXXFLAGS="' getenv('CXXFLAGS') ' -m64 -march=native -O3 -std=c++11 ' ...
+        'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
+        'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
         '-I' relativepath(fullfile(hifir4m_root, 'hifir', 'src')) ' ' ... % include
         '-O -output ' mx ' ' src sysLibs];  % link to system libraries

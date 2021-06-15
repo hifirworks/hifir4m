@@ -45,7 +45,7 @@ classdef HIF
             %
             % See Also: IS_MIXED
             id_ = obj.dbase.id;
-        end        
+        end
         function flag = empty(obj)
             %EMPTY - Check emptyness
             %

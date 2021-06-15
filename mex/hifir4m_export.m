@@ -48,24 +48,37 @@ opts = p.Results;
 hilu = hifir4m_mex(HIFIR4M_EXPORT_DATA, dbase, opts.destroy);
 
 if strcmp(opts.format, 'sparse')
-    if isempty(which('crs_2sparse'))
-        fprintf(2, 'converting to sparse requires crs_2sparse from numgeom\n');
-        return;
-    end
     for i = 1:size(hilu,1)
         if isstruct(hilu{i})
             % sparse level
             n = double(hilu{i}.L_B.nrows);
-            hilu{i}.L_B = crs_2sparse(hilu{i}.L_B);
+            hilu{i}.L_B = crsSparse(hilu{i}.L_B);
             hilu{i}.L_B = hilu{i}.L_B + speye(n);
             hilu{i}.D_B = spdiags(hilu{i}.D_B, 1, n, n);
-            hilu{i}.U_B = crs_2sparse(hilu{i}.U_B);
+            hilu{i}.U_B = crsSparse(hilu{i}.U_B);
             hilu{i}.U_B = hilu{i}.U_B + speye(n);
-            hilu{i}.E = crs_2sparse(hilu{i}.E);
-            hilu{i}.F = crs_2sparse(hilu{i}.F);
+            hilu{i}.E = crsSparse(hilu{i}.E);
+            hilu{i}.F = crsSparse(hilu{i}.F);
         end
     end
 end
 
 %-------------------------- END MAIN CODE -------------------------------%
+end
+
+function row_ind = crsRowind(row_ptr, col_ind)
+row_ind = zeros(size(col_ind),class(col_ind));
+
+nrows = int32(length(row_ptr))-1;
+for i=1:nrows
+    for j = row_ptr(i) : row_ptr(i+1) - 1
+        row_ind(j) = i;
+    end
+end
+end
+
+function B = crsSparse(A)
+row_ind = crsRowind(A.row_ptr, A.col_ind);
+B = sparse(double(row_ind), double(A.col_ind), A.val, double(A.nrows), ...
+    double(A.ncols));
 end
