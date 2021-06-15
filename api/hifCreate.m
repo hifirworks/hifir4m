@@ -20,7 +20,7 @@ function [hdl, varargout] = hifCreate(A, S, varargin)
 %
 % See also hifApply, Hifir, HifParams
 
-% Copyright 2019--2021 NumGeom Group of Stony Brook University
+% Copyright (C) 2019--2021 NumGeom Group of Stony Brook University
 
 %% Parse input arguments
 
