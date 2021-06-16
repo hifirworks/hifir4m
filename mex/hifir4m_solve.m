@@ -30,7 +30,7 @@ function varargout = hifir4m_solve(dbase, varargin)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% License: GLPv3+
+% License: AGPLv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 

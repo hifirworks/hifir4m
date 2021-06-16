@@ -33,7 +33,7 @@ function opts = hifir4m_create_params(varargin)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% License: GLPv3+
+% License: AGPLv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 

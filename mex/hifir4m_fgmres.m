@@ -75,7 +75,7 @@ function varargout = hifir4m_fgmres(dbase, A, b, varargin)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% License: GLPv3+
+% License: AGPLv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 

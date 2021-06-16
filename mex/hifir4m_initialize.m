@@ -25,7 +25,7 @@ function dbase = hifir4m_initialize(is_mixed, is_complex)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% License: GLPv3+
+% License: AGPLv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
