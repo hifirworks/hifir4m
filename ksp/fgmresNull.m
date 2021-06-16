@@ -324,7 +324,7 @@ for iter = int32(1):N
         r = M(r);
     else
         if trans; op = 'SH'; else; op = 'S'; end
-        r = M.apply(r, op);
+        r = M.apply(r, op, -1);
     end
     x = x+r;
     w = ax_multiply(A, M, x, trans, w);
