@@ -70,7 +70,7 @@ if isempty(opts.maxit)
     opts.maxit = 500;
 end
 if isempty(opts.rtol)
-    opts.rtol = 1.-6;
+    opts.rtol = 1.e-6;
 end
 
 % Create Hifir object

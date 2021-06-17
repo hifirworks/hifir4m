@@ -39,7 +39,7 @@ function rev = hifir4m_git_revision(pkg, rev_type)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% License: GLPv3+
+% License: AGPLv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 

@@ -72,7 +72,7 @@ function varargout = hifir4m_factorize(dbase, A, varargin)
 
 % Author: Qiao Chen
 % Email: qiao.chen@stonybrook.edu
-% License: GLPv3+
+% License: AGPLv3+
 
 %------------------------- BEGIN MAIN CODE ------------------------------%
 
