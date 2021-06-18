@@ -7,4 +7,6 @@
 .DS_Store
 .*swp
 *.o
+*.bak
+*.asv
 .MATLABDriveTag
