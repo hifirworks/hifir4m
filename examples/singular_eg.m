@@ -1,17 +1,16 @@
 %{
-Example of solving singular system
+    Example of solving singular system using PIPIT with testing matrix
+    gallery('neumann', 256).
 %}
 
 clear;
-h = HIF;
-N = 256;
+
 A = gallery('neumann', 256);
-left_nsp = null(full(A'));
-b = rand(N, 1);
-% filter the left null space from b, need to do it for now
-b = b - ((left_nsp'*b)/norm(left_nsp)^2)*left_nsp;
-info = h.factorize(A);
-disp(info);
-x = h.fgmres(A, b, [], [], [], [], [], [], [1, N]);
-fprintf(1, 'relative residual in 2 norm is %g\n', norm(A*x-b)/norm(b));
-clear h
+b = rand(size(A, 1), 1);
+
+% Call PIPIT with 1 dim(Null)
+x = pipitHifir(A, b, 1);
+res = norm(A' * (b - A* x)) / norm(A' * b);
+if res > 1e-6
+    fprintf(2, 'residual too large %.4g\n', res);
+end
