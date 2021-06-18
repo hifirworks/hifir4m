@@ -55,7 +55,7 @@ If you use them to solve highly ill-conditioned of singular systems, please cite
 }
 
 @Article{chen2021hifir,
-  author  = {Jiao, Xiangmin and Chen, Qiao},
+  author  = {Chen, Qiao and Jiao, Xiangmin},
   title   = {{HIFIR}: Hybrid Incomplete Factorization with Iterative Refinement 
              for Preconditioning Ill-conditioned and Singular Systems},
   journal = {arxiv},
