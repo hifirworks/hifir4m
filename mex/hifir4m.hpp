@@ -24,6 +24,7 @@
 #include <array>
 #include <complex>
 #include <exception>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -31,8 +32,6 @@
 #include <vector>
 
 #include "hifir4m_config.hpp"
-// avoid sorting!
-#include "HIF.hpp"
 #include "hifir4m_num_array.hpp"
 
 namespace hifir4m {
@@ -43,75 +42,6 @@ typedef int integer_type;
 #else
 typedef mwSignedIndex integer_type;
 #endif
-
-class MexNspFilter : public hif::NspFilter {
- public:
-  using base = hif::NspFilter;
-
-  explicit MexNspFilter(const std::size_t start = 0,
-                        const std::size_t end = static_cast<std::size_t>(-1))
-      : base(start, end) {}
-
-  virtual ~MexNspFilter() {
-    if (x_in) mxDestroyArray(x_in);
-  }
-
-  std::string f_name = "#unknown#";  ///< function to evaluate
-  mxArray *f_handle = nullptr;       ///< function handle
-  mutable mxArray *x_in = nullptr;   ///< input "wrapper" of x
-
-  virtual void user_filter(void *x, const std::size_t n,
-                           const char dtype) const override {
-    if (dtype != 'd')
-      mexErrMsgIdAndTxt("hifir4m:nspFilter:badDtype",
-                        "only double precision is supported");
-    if (f_name == "#unknown#")
-      mexErrMsgIdAndTxt("hifir4m:nspFilter:unknownFunc", "unset function name");
-    if (f_name == "feval" && !f_handle)
-      mexErrMsgIdAndTxt("hifir4m:nspFilter:missingHandler",
-                        "missing function handle");
-    if (!x_in) {
-      if (dtype == 'd')
-        x_in = mxCreateDoubleMatrix(n, 1, mxREAL);
-      else
-        x_in = mxCreateDoubleMatrix(n, 1, mxCOMPLEX);
-    }
-    if (n != mxGetM(x_in))
-      mexErrMsgIdAndTxt("hifir4m:nspFilter:badShape", "unmatched sizes");
-    // copy x to buffer
-    if (dtype == 'd')
-      std::copy_n(reinterpret_cast<const double *>(x), n, mxGetPr(x_in));
-    else
-      std::copy_n(reinterpret_cast<const std::complex<double> *>(x), n,
-                  reinterpret_cast<std::complex<double> *>(mxGetData(x_in)));
-    mxArray *rhs[2];
-    const mwSize nrhs = f_handle ? 2 : 1;
-    if (f_handle) {
-      // if using function handle, then the first one is the function handle,
-      // while the input argument is given following it
-      rhs[0] = f_handle;
-      rhs[1] = x_in;
-    } else
-      rhs[0] = x_in;
-    // NOTE: We have to create a new array each time to ensure the safety of
-    // MATLAB runtime system.
-    // TODO: can we avoid this?
-    mxArray *lhs;
-    // call MATLAB directly
-    mexCallMATLAB(1, &lhs, nrhs, rhs, f_name.c_str());
-    // copy back to data to HIFIR
-    if (dtype == 'd')
-      std::copy_n(mxGetPr(lhs), n, reinterpret_cast<double *>(x));
-    else
-      std::copy_n(
-          reinterpret_cast<const std::complex<double> *>(mxGetData(lhs)), n,
-          reinterpret_cast<std::complex<double> *>(x));
-    mxDestroyArray(lhs);  // free the array
-  }
-
-  // function to enable user override function option
-  inline void enable_or() { _type = USER_OR; }
-};
 
 /**
  * @brief Database structure
@@ -134,25 +64,25 @@ struct HIFIR4M_Database {
   using prec_t =
       typename std::conditional<IsMixed, hif::HIF<_reduce_type, integer_type>,
                                 hif::HIF<ValueType, integer_type>>::type;
-  ///< preconditioner type
-  using ksp_factory_t = hif::ksp::KSPFactory<prec_t, _value_type>;
-  ///< KSP factory type
-  using solver_t = typename ksp_factory_t::fgmres;  ///< FMGRES type
   ///< updated operator type
   static constexpr bool IS_MIXED = IsMixed;  ///< mixed flag
   static constexpr bool IS_REAL = _IS_REAL;  ///< real flag
 
   // attributes
-  std::shared_ptr<prec_t> M;      ///< preconditioner attribute
-  std::shared_ptr<solver_t> ksp;  ///< KSP solver
+  std::shared_ptr<prec_t> M;  ///< preconditioner attribute
 };
 
 enum {
-  HIFIR4M_CREATE = 0,   ///< create database
-  HIFIR4M_GET = 1,      ///< get database
-  HIFIR4M_CLEAR = 2,    ///< clear database
-  HIFIR4M_CHECK = 3,    ///< check emptyness
-  HIFIR4M_DESTROY = 4,  ///< destroy database
+  HIFIR4M_CREATE = 0,       ///< create database
+  HIFIR4M_GET = 1,          ///< get database
+  HIFIR4M_CLEAR = 2,        ///< clear database
+  HIFIR4M_CHECK = 3,        ///< check emptyness
+  HIFIR4M_DESTROY = 4,      ///< destroy database
+  HIFIR4M_FACTORIZE = 5,    ///< Factorize
+  HIFIR4M_M_SOLVE = 6,      ///< preconditioner solve
+  HIFIR4M_M_MULTIPLY = 7,   ///< matrix vector product
+  HIFIR4M_EXPORT_DATA = 8,  ///< export data
+  HIFIR4M_QUERY = 9,        ///< query factorization info
 };
 
 /**
@@ -295,11 +225,9 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
   if (mxGetM(colind) < (mwSize)nnz)
     mexErrMsgIdAndTxt((prefix + ":badLength").c_str(), "bad nnz length %d",
                       nnz);
-  if (*rptr == 1) {
-    // convert to zero based
-    for (mwSize i = 0; i < n + 1; ++i) --rptr[i];
-    for (mwSize i = 0; i < (mwSize)nnz; ++i) --cptr[i];
-  }
+  if (*rptr != 1 && *rptr != 0)
+    mexErrMsgIdAndTxt((prefix + ":badIndexBase").c_str(),
+                      "must be {0,1}-based");
   *rptr_ = rptr;
   *cptr_ = cptr;
   *n_ = n;
@@ -342,8 +270,6 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   // get options
   const auto opts = create_opt_from_struct(opt);
-  const auto elim_nz = A.eliminate(1e-15, true);
-  if (opts.verbose) hif_info("eliminated %zd small entries in A", elim_nz);
   if (!data->M) data->M.reset(new typename data_t::prec_t());
   hif::DefaultTimer timer;
   timer.start();
@@ -411,48 +337,6 @@ inline double M_solve(int id, const mxArray *rhs, mxArray *lhs,
   return timer.time();  // give M solve time to the user
 }
 
-#if 0
-/**
- * @brief Accessing inv(M) with 2 RHS (for complex conjugate pair)
- *
- * @tparam IsMixed Wether or not the database uses mixed precision
- * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
- * @param[in] id ID tag of the database
- * @param[in] rhs right-hand side vector (nx2)
- * @param[out] lhs left-hand side result, i.e., lhs=inv(A)*rhs (nx2)
- * @param[in] r (optional) rank for the final Schur complement
- * @return double overhead-free wall-clock time
- */
-template <bool IsMixed, class ValueType = double>
-inline double M_solve2(int id, const mxArray *rhs, mxArray *lhs,
-                       const std::size_t r = 0u) {
-  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
-
-  if (!data->M)
-    mexErrMsgIdAndTxt("hifir4m:M_solve2:emptyM", "M has not yet factorized");
-
-  if (mxGetM(lhs) != 2u || mxGetM(rhs) != 2u)
-    mexErrMsgIdAndTxt("hifir4m:M_solve2:badRhsSize", "rhs/lhs must be 2-by-n");
-  if (mxGetN(rhs) != mxGetN(lhs) || mxGetN(rhs) != data->M->nrows())
-    mexErrMsgIdAndTxt("hifir4m:M_solve2:badRhsSize",
-                      "rhs size does not agree with lhs or M");
-
-  using array_t = hif::Array<std::array<ValueType, 2>>;
-  array_t b(data->M->nrows(), (std::array<ValueType, 2> *)mxGetData(rhs), true),
-      x(data->M->nrows(), (std::array<ValueType, 2> *)mxGetData(lhs), true);
-  hif::DefaultTimer timer;
-  timer.start();
-  try {
-    data->M->solve_mrhs(b, x, r);
-  } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hifir4m:M_solve:failedSolve",
-                      "M_solve failed with message:\n%s", e.what());
-  }
-  timer.finish();
-  return timer.time();  // give M solve time to the user
-}
-#endif
-
 // M solve with inner iteration
 
 /**
@@ -503,6 +387,19 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
                          &rptr, &cptr, &n);
   get_num_data(val, &vptr, buf);
 
+  bool local_buf = false;
+  if (*rptr != 0) {
+    local_buf = true;
+    integer_type *ptr_bak = rptr;
+    rptr = (integer_type *)mxMalloc((n + 1) * sizeof(integer_type));
+    const auto index_base = ptr_bak[0];
+    for (mwSize i(0); i < n + 1; ++i) rptr[i] = ptr_bak[i] - index_base;
+    ptr_bak = cptr;
+    const mwSize nnz = rptr[n] - index_base;
+    cptr = (integer_type *)mxMalloc(sizeof(integer_type) * nnz);
+    for (mwSize i(0); i < nnz; ++i) cptr[i] = ptr_bak[i] - index_base;
+  }
+
   // create csr wrapper from HIFIR
   hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
   using array_t = hif::Array<ValueType>;
@@ -522,6 +419,10 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
   }
   timer.finish();
   set_num_data(lhs, lhs_ptr);
+  if (local_buf) {
+    mxFree(rptr);
+    mxFree(cptr);
+  }
   return timer.time();  // give M solve time to the user
 }
 
@@ -577,220 +478,6 @@ inline double M_multiply(int id, const mxArray *rhs, mxArray *lhs,
   return timer.time();  // give M solve time to the user
 }
 
-// KSP solve
-
-/**
- * @brief Solving with FGMRES solver
- *
- * @tparam IsMixed Wether or not the database uses mixed precision
- * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
- * @param[in] id ID tag of the database
- * @param[in] restart Restart of GMRES (30)
- * @param[in] max_iter Maximum iteration allowed (500)
- * @param[in] rtol Relative tolerance for residual convergence (1e-6)
- * @param[in] verbose Verbose flag (true)
- * @param[in] rowptr rowptr row pointer mex array (int32)
- * @param[in] colind colind column index mex array (int32)
- * @param[in] val value mex array (double)
- * @param[in] rhs Right-hand side b vector
- * @param[in,out] lhs Left-hand side solution and initial guess vector
- * @return A tuple of flag, iterations, final residual and overhead-free
- *          wall-clock time are returned in this routine.
- */
-template <bool IsMixed, class ValueType = double>
-inline std::tuple<int, int, double, double> KSP_solve(
-    int id, const int restart, const int max_iter, const double rtol,
-    const bool verbose, const mxArray *rowptr, const mxArray *colind,
-    const mxArray *val, const mxArray *rhs, mxArray *lhs,
-    const int iter_refines = 1, const int *cst_nsp = nullptr,
-    const char *fname = nullptr, const mxArray *fhdl = nullptr) {
-  using ksp_t = typename HIFIR4M_Database<IsMixed, ValueType>::solver_t;
-  if (!std::is_floating_point<ValueType>::value && !mxIsComplex(rhs) &&
-      !mxIsComplex(lhs) && !mxIsComplex(val))
-    mexErrMsgIdAndTxt("hifir4m:M_solve:complex", "input array is not complex.");
-
-  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
-  if (!data->M)
-    mexErrMsgIdAndTxt("hifir4m:KSP_solve:emptyM", "M has not yet factorized");
-
-  if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
-    mexErrMsgIdAndTxt("hifir4m:KSP_solve:badRhsSize",
-                      "rhs/lhs must be column vector");
-  // get matrix
-  mwSize n;
-  integer_type *rptr, *cptr;
-  ValueType *vptr;
-  std::vector<ValueType> buf;
-  convert_crs_mx2pointer(std::string("hifir4m:KSP_solve"), rowptr, colind,
-                         &rptr, &cptr, &n);
-  get_num_data(val, &vptr, buf);
-
-  if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows() ||
-      data->M->nrows() != n)
-    mexErrMsgIdAndTxt("hifir4m:KSP_solve:badRhsSize",
-                      "rhs size does not agree with lhs, M or A");
-
-  data->ksp.reset(new ksp_t(data->M));
-  auto &ksp = *data->ksp;
-  ksp.set_M(data->M);  // setup preconditioner
-
-  // create csr wrapper from HIFIR
-  hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
-  // arrays
-  using array_t = hif::Array<ValueType>;
-  ValueType *rhs_ptr, *lhs_ptr;
-  // only needed in non-interleaved complex
-  std::vector<ValueType> rhs_buf, lhs_buf;
-  get_num_data(rhs, &rhs_ptr, rhs_buf);
-  get_num_data(lhs, &lhs_ptr, lhs_buf);
-  array_t b(n, rhs_ptr, true), x(n, lhs_ptr, true);
-
-  if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
-  if (max_iter > 0) ksp.set_maxit(max_iter);
-  if (rtol > 0.0) ksp.set_rtol(rtol);
-  const int irs = iter_refines > 0 ? iter_refines : 1;
-  ksp.set_inner_steps(irs);
-
-  // enable const null space filter
-  if (cst_nsp)
-    data->M->nsp.reset(new MexNspFilter(cst_nsp[0] - 1, cst_nsp[1]));
-  else if (fname) {
-    if (verbose)
-      hif_info(
-          "setting up user (right) null space filter with\n"
-          "\tcallback name: %s\n"
-          "\tfunction handle: %s",
-          fname, (fhdl ? "yes" : "no"));
-    // setup user filter
-    data->M->nsp.reset(new MexNspFilter());
-    MexNspFilter *mex_nsp = dynamic_cast<MexNspFilter *>(data->M->nsp.get());
-    if (!mex_nsp)
-      mexErrMsgIdAndTxt("hifir4m:KSP_solve:badNsp",
-                        "failed to dynamic_cast nullspace filter");
-    mex_nsp->f_name = fname;
-    if (fhdl) mex_nsp->f_handle = const_cast<mxArray *>(fhdl);
-    mex_nsp->enable_or();
-  }
-
-  hif::DefaultTimer timer;
-  int flag;
-  std::size_t iters;
-  const int kernel_type =
-      irs <= 1 ? hif::ksp::TRADITION : hif::ksp::ITERATIVE_REFINE;
-  timer.start();
-  try {
-    std::tie(flag, iters) =
-        ksp.solve(A, b, x, kernel_type, true /* always with guess */, verbose);
-  } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hifir4m:KSP_solve:failedSolve",
-                      "KSP_solve failed with message:\n%s", e.what());
-  }
-  timer.finish();
-  const double tt = timer.time();
-  const double res = data->ksp->get_resids().back();
-  data->ksp.reset();                       // free
-  if (data->M->nsp) data->M->nsp.reset();  // release const nullspace filter
-  set_num_data(lhs, lhs_ptr);
-  return std::make_tuple(flag, (int)iters, res, tt);
-}
-
-#if 0
-/**
- * @brief Solve left null space with GMRES
- *
- * @tparam IsMixed Wether or not the database uses mixed precision
- * @tparam ValueType Data type used, e.g., \a double or \a complex<double>
- * @tparam UseHi using hi-precision kernels
- * @param[in] id ID tag of the database
- * @param[in] restart Restart of GMRES (30)
- * @param[in] max_iter Maximum iteration allowed (500)
- * @param[in] rtol Relative tolerance for residual convergence (1e-6)
- * @param[in] verbose Verbose flag (true)
- * @param[in] rowptr rowptr row pointer mex array (int32)
- * @param[in] colind colind column index mex array (int32)
- * @param[in] val value mex array (double)
- * @param[in] rhs Right-hand side b vector
- * @param[in,out] lhs Left-hand side solution and initial guess vector
- * @return A tuple of flag, iterations, final residual and overhead-free
- *          wall-clock time are returned in this routine.
- */
-template <bool IsMixed, bool UseHi, class ValueType = double>
-inline std::tuple<int, int, double, double> KSP_null_solve(
-    int id, const int restart, const int max_iter, const double rtol,
-    const bool verbose, const mxArray *rowptr, const mxArray *colind,
-    const mxArray *val, const mxArray *rhs, mxArray *lhs) {
-  using ksp_t = typename HIFIR4M_Database<IsMixed, ValueType>::null_solver_t;
-  using ksp_hi_t =
-      typename HIFIR4M_Database<IsMixed, ValueType>::null_hi_solver_t;
-
-  auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
-  if (!data->M)
-    mexErrMsgIdAndTxt("hifir4m:KSP_null_solve:emptyM",
-                      "M has not yet factorized");
-
-  if (mxGetN(lhs) != 1u || mxGetN(rhs) != 1u)
-    mexErrMsgIdAndTxt("hifir4m:KSP_null_solve:badRhsSize",
-                      "rhs/lhs must be column vector");
-  // get matrix
-  mwSize n;
-  integer_type *rptr, *cptr;
-  ValueType *vptr;
-  convert_crs_mx2pointer(std::string("hifir4m:KSP_solve"), rowptr, colind, val,
-                         &rptr, &cptr, &vptr, &n);
-
-  if (mxGetM(rhs) != mxGetM(lhs) || mxGetM(rhs) != data->M->nrows() ||
-      data->M->nrows() != n)
-    mexErrMsgIdAndTxt("hifir4m:KSP_solve:badRhsSize",
-                      "rhs size does not agree with lhs, M or A");
-
-  // create csr wrapper from HIFIR
-  hif::CRS<ValueType, integer_type> A(n, n, rptr, cptr, vptr, true);
-  // arrays
-  using array_t = hif::Array<ValueType>;
-  array_t b(n, (ValueType *)mxGetData(rhs), true),
-      x(n, (ValueType *)mxGetData(lhs), true);
-
-  if (!UseHi) {
-    data->ksp_null.reset(new ksp_t(data->M));
-    auto &ksp = *data->ksp_null;
-    ksp.set_M(data->M);  // setup preconditioner
-    if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
-    if (max_iter > 0) ksp.set_maxit(max_iter);
-    if (rtol > 0.0) ksp.set_rtol(rtol);
-  } else {
-    data->ksp_null_hi.reset(new ksp_hi_t(data->M));
-    auto &ksp = *data->ksp_null_hi;
-    ksp.set_M(data->M);  // setup preconditioner
-    if (ksp.is_arnoldi() && restart > 0) ksp.set_restart_or_cycle(restart);
-    if (max_iter > 0) ksp.set_maxit(max_iter);
-    if (rtol > 0.0) ksp.set_rtol(rtol);
-  }
-
-  hif::DefaultTimer timer;
-  int flag;
-  std::size_t iters;
-  timer.start();
-  try {
-    if (!UseHi)
-      std::tie(flag, iters) = data->ksp_null->solve(
-          A, b, x, hif::ksp::TRADITION, true /* always with guess */, verbose);
-    else
-      std::tie(flag, iters) = data->ksp_null_hi->solve(
-          A, b, x, hif::ksp::TRADITION, true /* always with guess */, verbose);
-  } catch (const std::exception &e) {
-    mexErrMsgIdAndTxt("hifir4m:KSP_solve:failedSolve",
-                      "KSP_solve failed with message:\n%s", e.what());
-  }
-  timer.finish();
-  const double tt = timer.time();
-  const double res = !UseHi ? data->ksp_null->get_resids().back()
-                            : data->ksp_null_hi->get_resids().back();
-  !UseHi ? data->ksp_null.reset() : data->ksp_null_hi.reset();  // free
-  return std::make_tuple(flag, (int)iters, res, tt);
-}
-
-#endif
-
 /**
  * @brief Extract the internal data from HIFIR
  *
@@ -812,15 +499,6 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
   auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
   if (!data || !data->M || data->M->empty()) {
     // empty multi-level M
-    *hilu = mxCreateCellMatrix(0, 0);
-    return;
-  }
-
-  if (!data->M->can_export()) {
-    mexWarnMsgIdAndTxt(
-        "hifir4m:M_export:cannot_export",
-        "Exporting data is not allowed. 1) compiled with sparse last level, or "
-        "2) using interval-based data stuctures for L and U");
     *hilu = mxCreateCellMatrix(0, 0);
     return;
   }
