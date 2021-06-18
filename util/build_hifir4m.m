@@ -7,7 +7,8 @@ end
 
 mods = {'mex/hifir4m_mex', ...
     'mex/private/hifir4m_ijv2crs', ...
-    'mex/hifir4m_isint64'};
+    'mex/hifir4m_isint64', ...
+    'mex/hifir4m_version'};
 
 if isoctave
     mexCmd = 'mmex -O';
