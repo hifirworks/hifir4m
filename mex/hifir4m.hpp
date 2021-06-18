@@ -150,40 +150,44 @@ inline HIFIR4M_Database<IsMixed, ValueType> *database(const int action,
  */
 inline hif::Options create_opt_from_struct(const mxArray *rhs) {
   if (!mxIsStruct(rhs))
-    mexErrMsgIdAndTxt("hifir4m:options:badInput", "input must be structure");
+    mexErrMsgIdAndTxt("hifir4m:params:badInput", "input must be structure");
   hif::Options opt = hif::get_default_options();
   // WARNING! The structure from MATLAB should be initialized by a structured
   // routine with the following fields that are accessed. In addition, the
   // index must align with the order in C++ struct of Options
-  auto get_field = [&](const int field) -> double {
-    return mxGetScalar(mxGetFieldByNumber(rhs, 0, field));
+  auto get_field = [&](const char *field) -> double {
+    auto *fd = mxGetField(rhs, 0, field);
+    if (!fd)
+      mexErrMsgIdAndTxt("hifir4m:params:invalidField", "%s is unknown field",
+                        field);
+    return mxGetScalar(fd);
   };
-  opt.tau_L = get_field(0);
-  opt.tau_U = get_field(1);
-  opt.kappa_d = get_field(2);
-  opt.kappa = get_field(3);
-  opt.alpha_L = get_field(4);
-  opt.alpha_U = get_field(5);
-  opt.rho = get_field(6);
-  opt.c_d = get_field(7);
-  opt.c_h = get_field(8);
-  opt.N = get_field(9);
-  opt.verbose = get_field(10);
-  opt.rf_par = get_field(11);
-  opt.reorder = get_field(12);
-  opt.spd = get_field(13);
-  opt.check = get_field(14);
-  opt.pre_scale = get_field(15);
-  opt.symm_pre_lvls = get_field(16);
-  opt.threads = get_field(17);
-  opt.mumps_blr = get_field(18);
-  opt.fat_schur_1st = get_field(19);
-  opt.rrqr_cond = get_field(20);
-  opt.pivot = get_field(21);
-  opt.gamma = get_field(22);
-  opt.beta = get_field(23);
-  opt.is_symm = get_field(24);
-  opt.no_pre = get_field(25);
+  opt.tau_L = get_field("tau_L");
+  opt.tau_U = get_field("tau_U");
+  opt.kappa_d = get_field("kappa_d");
+  opt.kappa = get_field("kappa");
+  opt.alpha_L = get_field("alpha_L");
+  opt.alpha_U = get_field("alpha_U");
+  opt.rho = get_field("rho");
+  opt.c_d = get_field("c_d");
+  opt.c_h = get_field("c_h");
+  opt.N = get_field("N");
+  opt.verbose = get_field("verbose");
+  opt.rf_par = get_field("rf_par");
+  opt.reorder = get_field("reorder");
+  opt.spd = get_field("spd");
+  opt.check = get_field("check");
+  opt.pre_scale = get_field("pre_scale");
+  opt.symm_pre_lvls = get_field("symm_pre_lvls");
+  opt.threads = get_field("threads");
+  opt.mumps_blr = get_field("mumps_blr");
+  opt.fat_schur_1st = get_field("fat_schur_1st");
+  opt.rrqr_cond = get_field("rrqr_cond");
+  opt.pivot = get_field("pivot");
+  opt.gamma = get_field("gamma");
+  opt.beta = get_field("beta");
+  opt.is_symm = get_field("is_symm");
+  opt.no_pre = get_field("no_pre");
   return opt;
 }
 
