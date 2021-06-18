@@ -42,12 +42,13 @@
   do {                    \
     mexPrintf(__msg);     \
     mexPrintf("\n");      \
-    ioFlush(); \
+    ioFlush();            \
   } while (false)
 #define HIF_STDERR(__msg) \
   do {                    \
     mexWarnMsgTxt(__msg); \
     mexWarnMsgTxt("\n");  \
+    ioFlush();            \
   } while (false)
 
 // No ASCII color
@@ -70,5 +71,7 @@
 #else
 #define HIF_LAPACK_INT mwSignedIndex
 #endif
+
+#include "hifir.hpp"
 
 #endif  // HIFIR4M_CONFIG_HPP_

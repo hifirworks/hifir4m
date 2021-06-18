@@ -8,11 +8,8 @@ classdef HifEnum
         DESTROY = int32(4);
         FACTORIZE = int32(5);
         M_SOLVE = int32(6);
-        KSP_SOLVE = int32(7);
-        KSP_NULL = int32(8);
-        EXPORT_DATA = int32(9);
-        M_SOLVE2 = int32(10);
-        M_MULTIPLY = int32(11);
-        QUERY = int32(12);
+        M_MULTIPLY = int32(7);
+        EXPORT_DATA = int32(8);
+        QUERY = int32(9);
     end
 end

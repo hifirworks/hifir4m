@@ -45,12 +45,13 @@ static inline typename std::enable_if<IsReal, void>::type convert_ijv2crs(
   for (mwSize i(0); i < nnz; ++i) {
     const auto idx = rowptr[rows[i]];
     vals_ptr[idx] = vs_ptr[i];
-    colind[idx] = cols[i] - 1;
+    colind[idx] = cols[i];
     ++rowptr[rows[i]];
   }
   // revert rowptr (notice that the address has been shiftted leftward by 1)
-  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1];
-  rowptr[1] = 0;
+  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1] + 1;
+  rowptr[1] = 1;
+  ++rowptr[n + 1];
 }
 
 template <bool IsReal>
@@ -81,12 +82,13 @@ static inline typename std::enable_if<!IsReal, void>::type convert_ijv2crs(
     vals_r_ptr[idx] = vs_r_ptr[i];
     vals_i_ptr[idx] = vs_i_ptr[i];
 #endif
-    colind[idx] = cols[i] - 1;
+    colind[idx] = cols[i];
     ++rowptr[rows[i]];
   }
   // revert rowptr (notice that the address has been shiftted leftward by 1)
-  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1];
-  rowptr[1] = 0;
+  for (mwSize i(n); i > 1u; --i) rowptr[i] = rowptr[i - 1] + 1;
+  rowptr[1] = 1;
+  ++rowptr[n + 1];
 }
 
 // convert IJV format from MATLAB built-in find to CRS
