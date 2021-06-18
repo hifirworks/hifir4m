@@ -24,8 +24,8 @@ end
 
 for m = 1:length(mods)
     md = mods{m};
-    src = ['''' fullfile(hifir4m_root, [md '.cpp']) ''''];
-    mx = ['''' fullfile(hifir4m_root, [md '.' mexext]) ''''];
+    src = fullfile(hifir4m_root, [md '.cpp']);
+    mx = fullfile(hifir4m_root, [md '.' mexext]);
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
     % assume GCC openmp
     cmd = [mexCmd ' ' ...
@@ -33,7 +33,7 @@ for m = 1:length(mods)
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
         '-I''' fullfile(hifir4m_root, 'hifir', 'src') ''' ' ... % include
-        '-output ' mx ' ' src sysFlags];  % link to system libraries
+        '-output ''' mx ''' ''' src '''' sysFlags];  % link to system libraries
     disp(cmd);
     eval(cmd);
 end
