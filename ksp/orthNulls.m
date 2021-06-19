@@ -1,10 +1,10 @@
-function [vs, iters, ref_iters, times] = pipitNull(A, M, isleft, nNull, ...
-    isSig, restart, rtol, maxit, verbose)
-%pipitNull - Solving for nullspace
+function [vs, iters, ref_iters] = orthNulls(A, M, nNull, leftnull, ...
+    isSig, restart, rtol, maxit)
+%orthNulls  Computes orthonormal null-space vectors using HIFIR
 %
 % Syntax:
-%   vs = pipitNull(A, M, isleft, nNull, isSig, restart, rtol, maxit, verbose)
-%   [vs, iters, ref_iters, times] = pipitNull(___)
+%   vs = orthNulls(A, M, nNull, leftnull, isSig, restart, rtol, maxit)
+%   [vs, iters, ref_iters] = orthNulls(...)
 %
 % Description:
 %   Small-dimension nullspace computation based on HIFIR and FGMRES. nNull
@@ -12,8 +12,7 @@ function [vs, iters, ref_iters, times] = pipitNull(A, M, isleft, nNull, ...
 %   HIF preconditioner is singular, which can be determined by checking the
 %   final Schur complement, i.e., info.schur_rank == info.schur_size.
 %
-% See Also:
-%   fgmresNull
+% See also fgmresNull
 
 if issparse(A)
     n = int32(size(A, 1));
@@ -23,26 +22,15 @@ end
 vs = create_rand_orth(n, nNull);
 iters = zeros(nNull, 1, 'int32');
 ref_iters = iters;
-times = zeros(size(iters));
 nullIter = int32(1);
 while true
-    if verbose
-        fprintf(1, 'Looking for %d null-space vector ...\n', nullIter);
-    end
     if ~isSig
         vs(:, nullIter) = iter_refine(A, M, 16, vs(:, nullIter), true);
         vs(:, nullIter) = vs(:, nullIter) / norm(vs(:, nullIter));
     end
-    tn = tic;
     [vs(:, nullIter), flag, iters(nullIter), ref_iters(nullIter)] = ...
-        fgmresNull(A, vs(:, nullIter), [], isleft, restart,  rtol, ...
+        fgmresNull(A, vs(:, nullIter), [], leftnull, restart,  rtol, ...
         maxit, M, [], []);
-    tn = toc(tn);
-    times(nullIter) = tn;
-    if verbose
-        fprintf(1, 'Finished %d null-space vector (flag=%d) in %d(%d) iters and %.4gs.\n', ...
-            nullIter, flag, iters(nullIter), ref_iters(nullIter), tn);
-    end
     if flag
         nullIter = nullIter - 1;
         break;

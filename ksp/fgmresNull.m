@@ -1,10 +1,10 @@
 function [x, flag, iter, ref_iter] = fgmresNull(A, b, ...
-    us, isleft, restart, rtol, maxit, M, ~, x0)
-%fgmresNull - Kernel for computing a null-space vector
+    us, leftnull, restart, rtol, maxit, M, ~, x0)
+%fgmresNull Kernel for computing a null-space vector
 %
 % Syntax:
-%   x = fgmresNull(A, b, us, isleft, restart, rtol, maxit, M, ~, x0)
-%   [x, flag, iter, ref_iter] = fgmresNull(___)
+%   x = fgmresNull(A, b, us, leftnull, restart, rtol, maxit, M, ~, x0)
+%   [x, flag, iter, ref_iter] = fgmresNull(...)
 %
 % See Also:
 %   fgmres_HO
@@ -66,7 +66,7 @@ form_x_thres = min(sqrt(rtol),1e6);
 for it_outer = 1:max_outer_iters
     % Compute the initial residual
     if it_outer > 1 || vec_sqnorm2(x) > 0
-        w = ax_multiply(A, M, x, isleft, w);
+        w = ax_multiply(A, M, x, leftnull, w);
         u = b - w;
     else
         u = b;
@@ -123,7 +123,7 @@ for it_outer = 1:max_outer_iters
         %v = v/norm(v);
 
         % Store the preconditioned vector (A, M, N, u, b)
-        [v, ref_iter, w] = iter_refine(A, M, N, v, w, isleft, iter);
+        [v, ref_iter, w] = iter_refine(A, M, N, v, w, leftnull, iter);
         ref_iters = ref_iters+ref_iter;
         % what we have G*q, z
         % NOTE, we also need to project of null space from preconditioned
@@ -131,7 +131,7 @@ for it_outer = 1:max_outer_iters
         v=mgs_null_proj(us,v);
 
         Z(:, j) = v;  % preconditioned subspace component
-        w = ax_multiply(A, M, v, isleft, w);
+        w = ax_multiply(A, M, v, leftnull, w);
 
         % Orthogonalize the Krylov vector
         %  Form Pj*Pj-1*...P1*Av.
@@ -228,7 +228,7 @@ for it_outer = 1:max_outer_iters
                 x2 = x2 + y2(i) * Z(:, i);
             end
             x2=mgs_null_proj(us,x2);
-            w = ax_multiply(A, M, x2, isleft, w);
+            w = ax_multiply(A, M, x2, leftnull, w);
             er = vec_1norm(w)/(A_1nrm*vec_1norm(x2));
             %fprintf('|Ax|_1/|A|_1/|x|_1=%g\n', er);
             if er <= rtol
