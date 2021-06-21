@@ -14,13 +14,13 @@ Clone this project to your preferred location. Then start MATLAB or GNU Octave u
 
 ## Usage ##
 
-The easiest way to use `hifir4m` is to call the `gmresHifir` interface. For example,
+The easiest way to use `hifir4m` is to call the `gmresHif` interface. For example,
 ```matlab
->> [x, flag, relres, iter, reshis, times] = gmresHifir(A, b);
+>> [x, flag, relres, iter, reshis, times] = gmresHif(A, b);
 ```
 where `A` is a MATLAB's built-in sparse matrix or a `MATLAB` `struct` containing the filds of `row_ptr`, `col_ind`, `vals` of a standard CRS storage format, and `b` is a right-hand-side vector (or RHS vectors with two columns).
 
-To access the intermediate-level interfaces of `hifir4m`, please see `gmresHifir.m` for the calling sequence of `hifCreate`, `hifApply`, and `hifDestroy`.
+To access the intermediate-level interfaces of `hifir4m`, please see `gmresHif.m` for the calling sequence of `hifCreate`, `hifApply`, and `hifDestroy`.
 
 ## Copyright and Licenses ##
 
