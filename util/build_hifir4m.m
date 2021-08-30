@@ -22,6 +22,13 @@ else
     end
 end
 
+% download hifir
+hifir_verion = '0.1.0';
+path_to_hifir = fullfile(tempdir, ['hifir-' hifir_verion]);
+if ~exist(path_to_hifir, 'dir')
+    path_to_hifir = download_hifir(hifir_verion);
+end
+
 for m = 1:length(mods)
     md = mods{m};
     src = fullfile(hifir4m_root, [md '.cpp']);
@@ -32,11 +39,13 @@ for m = 1:length(mods)
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
-        '-I''' fullfile(hifir4m_root, 'hifir', 'src') ''' ' ... % include
+        '-I''' fullfile(path_to_hifir, 'src') ''' ' ... % include
         '-output ''' mx ''' ''' src '''' sysFlags];  % link to system libraries
     disp(cmd);
     eval(cmd);
 end
+
+rmdir(path_to_hifir, 's');
 end
 
 function flag = isnewer(f1, f2)
