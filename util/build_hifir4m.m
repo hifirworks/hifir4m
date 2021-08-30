@@ -24,9 +24,14 @@ end
 
 % download hifir
 hifir_verion = '0.1.0';
-path_to_hifir = fullfile(tempdir, ['hifir-' hifir_verion]);
-if ~exist(path_to_hifir, 'dir')
-    path_to_hifir = download_hifir(hifir_verion);
+downloaded = false;
+
+% check HIFIR C++ root
+if exist(fullfile(hifir4m_root, 'hifir'), 'dir')
+    path_to_hifir = fullfile(hifir4m_root, 'hifir');
+else
+    downloaded = true;
+    path_to_hifir = fullfile(tempdir, ['hifir-' hifir_verion]);
 end
 
 for m = 1:length(mods)
@@ -34,6 +39,9 @@ for m = 1:length(mods)
     src = fullfile(hifir4m_root, [md '.cpp']);
     mx = fullfile(hifir4m_root, [md '.' mexext]);
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
+    if downloaded && ~exist(path_to_hifir, 'dir')
+        path_to_hifir = download_hifir(hifir_verion);
+    end
     % assume GCC openmp
     cmd = [mexCmd ' ' ...
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
@@ -45,7 +53,11 @@ for m = 1:length(mods)
     eval(cmd);
 end
 
-rmdir(path_to_hifir, 's');
+% Delete downloaded folder if neccessary
+if downloaded && exist(path_to_hifir, 'dir')
+    rmdir(path_to_hifir, 's');
+end
+
 end
 
 function flag = isnewer(f1, f2)
