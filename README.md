@@ -7,10 +7,17 @@
 Clone this project to your preferred location. Then start MATLAB or GNU Octave under the directory that contains `hifir4m`, or run the command
 
 ```matlab
->> run('/path/to/hifir4m/load_hifir')
+>> run('/path/to/hifir4m/startup_hifir')
 ```
 
 (and replace `/path/to/hifir4m/` to the directory that contains `hifir4m`) bo build `hifir4m` and load its path. It will build the *mex* kernels if needed by linking to MATLAB and Octave's built-in BLAS/LAPACK libraries for the low-level QRCP.
+
+Note that for the first time, `hifir4m` will download C++ package [HIFIR](https://github.com/hifirworks/hifir) while building *mex* kernels. If you don't have access to network during building *mex* kernels, then you can obtain HIFIR beforehand and put its source in `hifir4m/hifir-[hifir-version]` folder; for instance, you can run the following command to download the C++ HIFIR package
+
+```console
+cd /path/to/hifir4m
+env HIFIR_VERSION=0.1.0 wget -qO- https://github.com/hifirworks/hifir/archive/refs/tags/v${HIFIR_VERSION}.tar.gz|tar xzf -
+```
 
 ## Usage ##
 
@@ -38,7 +45,6 @@ If you use `HIFIR`,  `hifir4m`, or `hifir4py` in your research for nonsingular s
              large-scale saddle-point problems from {PDE}s},
   journal = {Numer. Linear Algebra Appl.},
   year    = {2021},
-  note    = {To appear},
   doi     = {10.1002/nla.2400},
 ```
 

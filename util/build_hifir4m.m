@@ -27,8 +27,8 @@ hifir_verion = '0.1.0';
 downloaded = false;
 
 % check HIFIR C++ root
-if exist(fullfile(hifir4m_root, 'hifir'), 'dir')
-    path_to_hifir = fullfile(hifir4m_root, 'hifir');
+if exist(fullfile(hifir4m_root, ['hifir-' hifir_verion]), 'dir')
+    path_to_hifir = fullfile(hifir4m_root, ['hifir-' hifir_verion]);
 else
     downloaded = true;
     path_to_hifir = fullfile(tempdir, ['hifir-' hifir_verion]);
