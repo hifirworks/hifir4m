@@ -23,15 +23,15 @@ else
 end
 
 % download hifir
-hifir_verion = '0.1.0';
+hifirVersion = '0.1.0';
 downloaded = false;
 
 % check HIFIR C++ root
-if exist(fullfile(hifir4m_root, ['hifir-' hifir_verion]), 'dir')
-    path_to_hifir = fullfile(hifir4m_root, ['hifir-' hifir_verion]);
+if exist(fullfile(hifir4m_root, ['hifir-' hifirVersion]), 'dir')
+    pathToHifir = fullfile(hifir4m_root, ['hifir-' hifirVersion]);
 else
     downloaded = true;
-    path_to_hifir = fullfile(tempdir, ['hifir-' hifir_verion]);
+    pathToHifir = fullfile(tempdir, ['hifir-' hifirVersion]);
 end
 
 for m = 1:length(mods)
@@ -39,23 +39,23 @@ for m = 1:length(mods)
     src = fullfile(hifir4m_root, [md '.cpp']);
     mx = fullfile(hifir4m_root, [md '.' mexext]);
     if ~force && exist(mx, 'file') && ~isnewer(src, mx); continue; end
-    if downloaded && ~exist(path_to_hifir, 'dir')
-        path_to_hifir = download_hifir(hifir_verion);
+    if downloaded && ~exist(pathToHifir, 'dir')
+        pathToHifir = download_hifir(hifirVersion);
     end
     % assume GCC openmp
     cmd = [mexCmd ' ' ...
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
-        '-I''' fullfile(path_to_hifir, 'src') ''' ' ... % include
+        '-I''' fullfile(pathToHifir, 'src') ''' ' ... % include
         '-output ''' mx ''' ''' src '''' sysFlags];  % link to system libraries
     disp(cmd);
     eval(cmd);
 end
 
 % Delete downloaded folder if neccessary
-if downloaded && exist(path_to_hifir, 'dir')
-    rmdir(path_to_hifir, 's');
+if downloaded && exist(pathToHifir, 'dir')
+    rmdir(pathToHifir, 's');
 end
 
 end
