@@ -40,7 +40,7 @@ namespace hifir4m {
 #ifdef HIFIR4M_USE_32INT
 typedef int integer_type;
 #else
-typedef mwSignedIndex integer_type;
+typedef INT64_T integer_type;
 #endif
 
 /**

@@ -26,7 +26,7 @@
 typedef int integer_type;
 #define INT_TYPE mxINT32_CLASS
 #else
-typedef mwSignedIndex integer_type;
+typedef INT64_T integer_type;
 #define INT_TYPE mxINT64_CLASS
 #endif
 
