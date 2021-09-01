@@ -1,4 +1,4 @@
-function [y, varargout] = hifApply(hif, x, op, rank, nirs)
+function varargout = hifApply(hif, x, op, rank, nirs)
 % hifApply  Applies a HIFIR preconditioner to solve or multiply.
 %
 %     y = hifApply(hif, x [op, rank, nirs])
@@ -25,11 +25,12 @@ if op(1) == 'S' || op(1) == 's'
     assert(nargin <= 5, 'Solve accepts up to five arguments.');
     if nargin == 5 && nirs > 1
         % with iterative refinement
-        [y, varargout{:}] = hifir4m_mex(HifEnum.M_SOLVE, hif.hdl, ...
-            A.row_ptr, A.col_ind, A.val, x, nirs, ...
+        assert(~isempty(hif.A), 'hif.A must not be empty.');
+        [varargout{1:nargout}] = hifir4m_mex(HifEnum.M_SOLVE, hif.hdl, ...
+            x, hif.A.row_ptr, hif.A.col_ind, hif.A.val, nirs, ...
             op(end) == 'H' || op(end) == 'T' || op(end) == 'h' || op(end) == 't', rank);
     else
-        [y, varargout{1:nargout}] = hifir4m_mex(HifEnum.M_SOLVE, hif.hdl, x, ...
+        [varargout{1:nargout}] = hifir4m_mex(HifEnum.M_SOLVE, hif.hdl, x, ...
             op(end) == 'H' || op(end) == 'T' || op(end) == 'h' || op(end) == 't', rank);
     end
 else
@@ -37,7 +38,7 @@ else
         'First character must be ''s'' or ''m''');
     assert(nargin <= 4, 'Multiply accepts up to four arguments.');
 
-    [y, varargout{1:nargout}] = hifir4m_mex(HifEnum.M_MULTIPLY, hif.hdl, x, ...
+    [varargout{1:nargout}] = hifir4m_mex(HifEnum.M_MULTIPLY, hif.hdl, x, ...
         op(end) == 'H' || op(end) == 'T' || op(end) == 'h' || op(end) == 't', rank);
 end
 
