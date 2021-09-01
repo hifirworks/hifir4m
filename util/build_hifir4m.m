@@ -25,7 +25,13 @@ else
 end
 
 % download hifir
-hifirVersion = '0.1.0';
+if ~exist(fullfile(hifir4m_root, 'VERSION'), 'file')
+    hifirVersion = '0.1.0';
+else
+    fid = fopen(fullfile(hifir4m_root, 'VERSION'), 'r');
+    hifirVersion = sprintf('%d.%d.%d', fscanf(fid, '%d.%d.%d'));
+    fclose(fid);
+end
 downloaded = false;
 
 % check HIFIR C++ root
