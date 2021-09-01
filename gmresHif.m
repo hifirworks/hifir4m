@@ -1,9 +1,9 @@
 function [x, flag, relres, iter, resids, times] = gmresHif(A, b, varargin)
 % gmresHif  Restarted GMRES with HIF as right preconditioner
 %
-%       x = gmresHif(A, b [, restart, rtol, maxit, x0])
+%       x = gmresHif(A, b [, M, restart, rtol, maxit, x0])
 %
-%    solves a sparse linear system using HIF as the right preconditioner.
+%    solves a sparse linear system using HIF as the preconditioner.
 %    Matrix A can be in MATLAB's built-in sparse format or in CRS struct
 %    with row_ptr, col_ind, and vals fields.
 %
@@ -22,6 +22,11 @@ function [x, flag, relres, iter, resids, times] = gmresHif(A, b, varargin)
 %       x = gmresHif(A, b, ..., 'name', value, ...)
 %    allows omitting some of the optional arguments followed by name-value
 %    pairs for the parameters. The parameters include:
+%       M:        HIF preconditioner. Default is [], which means this
+%                 function will compute a HIF preconditioner. For dynamic
+%                 and/or nonlinear problem, it is preferable to allow
+%                 the users to manage preconditioners outside of this
+%                 function.
 %       verbose:  verbose level. Default is 1.
 %       pcside:   Side of preconditioner ('left' or 'right'). If 'left',
 %                 MATLAB built-in GMRES will be called. Default is 'right'.
@@ -48,6 +53,7 @@ end
 p = inputParser;
 
 % Initialize default arguments
+addOptional(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir'));
 addOptional(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x));
 addOptional(p, 'rtol', 1.e-6, @(x) isempty(x) || isscalar(x));
 addOptional(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x));
@@ -76,19 +82,28 @@ if isempty(opts.rtol) || opts.rtol <= 0
 end
 
 % Create Hifir object
-if opts.verbose
-    fprintf(1, 'Computing hybrid incomplete factorization...\n');
-end
-
+computedHif = isempty(opts.M);
 times = zeros(2, 1);
-args = namedargs2cell(p.Unmatched);
-[hif, info, times(1)] = hifCreate(A, [], 'verbose', ...
-    opts.verbose>1, args{:});
+if computedHif
+    if opts.verbose
+        fprintf(1, 'Computing hybrid incomplete factorization...\n');
+    end
+    args = namedargs2cell(p.Unmatched);
+    [hif, info, times(1)] = hifCreate(A, [], 'verbose', ...
+        opts.verbose>1, args{:});
+else
+    if opts.verbose
+        fprintf(1, 'Using user-provided hybrid incomplete factorization...\n');
+    end
+    hif = opts.M;
+end
 M = @(x) hifApply(hif, x);
 
 if opts.verbose
-    fprintf(1, 'Computed HIF factorization in %.4g seconds \n', times(1));
-    disp(info);
+    if computedHif
+        fprintf(1, 'Computed HIF factorization in %.4g seconds \n', times(1));
+        disp(info);
+    end
     fprintf(1, 'Starting GMRES with HIF as right-preconditioner...\n');
 end
 
