@@ -65,24 +65,24 @@ struct HIFIR4M_Database {
       typename std::conditional<IsMixed, hif::HIF<_reduce_type, integer_type>,
                                 hif::HIF<ValueType, integer_type>>::type;
   ///< updated operator type
-  static constexpr bool IS_MIXED = IsMixed;  ///< mixed flag
-  static constexpr bool IS_REAL = _IS_REAL;  ///< real flag
+  static constexpr bool IS_MIXED = IsMixed;   ///< mixed flag
+  static constexpr bool IS_REAL  = _IS_REAL;  ///< real flag
 
   // attributes
   std::shared_ptr<prec_t> M;  ///< preconditioner attribute
 };
 
 enum {
-  HIFIR4M_CREATE = 0,       ///< create database
-  HIFIR4M_GET = 1,          ///< get database
-  HIFIR4M_CLEAR = 2,        ///< clear database
-  HIFIR4M_CHECK = 3,        ///< check emptyness
-  HIFIR4M_DESTROY = 4,      ///< destroy database
-  HIFIR4M_FACTORIZE = 5,    ///< Factorize
-  HIFIR4M_M_SOLVE = 6,      ///< preconditioner solve
-  HIFIR4M_M_MULTIPLY = 7,   ///< matrix vector product
+  HIFIR4M_CREATE      = 0,  ///< create database
+  HIFIR4M_GET         = 1,  ///< get database
+  HIFIR4M_CLEAR       = 2,  ///< clear database
+  HIFIR4M_CHECK       = 3,  ///< check emptyness
+  HIFIR4M_DESTROY     = 4,  ///< destroy database
+  HIFIR4M_FACTORIZE   = 5,  ///< Factorize
+  HIFIR4M_M_SOLVE     = 6,  ///< preconditioner solve
+  HIFIR4M_M_MULTIPLY  = 7,  ///< matrix vector product
   HIFIR4M_EXPORT_DATA = 8,  ///< export data
-  HIFIR4M_QUERY = 9,        ///< query factorization info
+  HIFIR4M_QUERY       = 9,  ///< query factorization info
 };
 
 /**
@@ -96,7 +96,7 @@ enum {
  */
 template <bool IsMixed, class ValueType = double>
 inline HIFIR4M_Database<IsMixed, ValueType> *database(const int action,
-                                                      int &id) {
+                                                      int &     id) {
   // create database
   using data_t = HIFIR4M_Database<IsMixed, ValueType>;
   static std::vector<std::shared_ptr<data_t>> pool;
@@ -162,32 +162,32 @@ inline hif::Options create_opt_from_struct(const mxArray *rhs) {
                         field);
     return mxGetScalar(fd);
   };
-  opt.tau_L = get_field("tau_L");
-  opt.tau_U = get_field("tau_U");
-  opt.kappa_d = get_field("kappa_d");
-  opt.kappa = get_field("kappa");
-  opt.alpha_L = get_field("alpha_L");
-  opt.alpha_U = get_field("alpha_U");
-  opt.rho = get_field("rho");
-  opt.c_d = get_field("c_d");
-  opt.c_h = get_field("c_h");
-  opt.N = get_field("N");
-  opt.verbose = get_field("verbose");
-  opt.rf_par = get_field("rf_par");
-  opt.reorder = get_field("reorder");
-  opt.spd = get_field("spd");
-  opt.check = get_field("check");
-  opt.pre_scale = get_field("pre_scale");
+  opt.tau_L         = get_field("tau_L");
+  opt.tau_U         = get_field("tau_U");
+  opt.kappa_d       = get_field("kappa_d");
+  opt.kappa         = get_field("kappa");
+  opt.alpha_L       = get_field("alpha_L");
+  opt.alpha_U       = get_field("alpha_U");
+  opt.rho           = get_field("rho");
+  opt.c_d           = get_field("c_d");
+  opt.c_h           = get_field("c_h");
+  opt.N             = get_field("N");
+  opt.verbose       = get_field("verbose");
+  opt.rf_par        = get_field("rf_par");
+  opt.reorder       = get_field("reorder");
+  opt.spd           = get_field("spd");
+  opt.check         = get_field("check");
+  opt.pre_scale     = get_field("pre_scale");
   opt.symm_pre_lvls = get_field("symm_pre_lvls");
-  opt.threads = get_field("threads");
-  opt.mumps_blr = get_field("mumps_blr");
+  opt.threads       = get_field("threads");
+  opt.mumps_blr     = get_field("mumps_blr");
   opt.fat_schur_1st = get_field("fat_schur_1st");
-  opt.rrqr_cond = get_field("rrqr_cond");
-  opt.pivot = get_field("pivot");
-  opt.gamma = get_field("gamma");
-  opt.beta = get_field("beta");
-  opt.is_symm = get_field("is_symm");
-  opt.no_pre = get_field("no_pre");
+  opt.rrqr_cond     = get_field("rrqr_cond");
+  opt.pivot         = get_field("pivot");
+  opt.gamma         = get_field("gamma");
+  opt.beta          = get_field("beta");
+  opt.is_symm       = get_field("is_symm");
+  opt.no_pre        = get_field("no_pre");
   return opt;
 }
 
@@ -222,10 +222,10 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
     mexErrMsgIdAndTxt((prefix + ":badIntDtype").c_str(),
                       "rowptr and colind must be int64");
 #endif
-  const auto n = mxGetM(rowptr) - 1;
+  const auto    n    = mxGetM(rowptr) - 1;
   integer_type *rptr = (integer_type *)mxGetData(rowptr),
                *cptr = (integer_type *)mxGetData(colind);
-  const auto nnz = rptr[n] - rptr[0];
+  const auto nnz     = rptr[n] - rptr[0];
   if (mxGetM(colind) < (mwSize)nnz)
     mexErrMsgIdAndTxt((prefix + ":badLength").c_str(), "bad nnz length %d",
                       nnz);
@@ -234,7 +234,7 @@ inline void convert_crs_mx2pointer(const std::string &prefix,
                       "must be {0,1}-based");
   *rptr_ = rptr;
   *cptr_ = cptr;
-  *n_ = n;
+  *n_    = n;
 }
 
 // factorization
@@ -262,9 +262,9 @@ inline double factorize(int id, const mxArray *rowptr, const mxArray *colind,
 
   auto data = database<IsMixed, ValueType>(HIFIR4M_GET, id);
 
-  mwSize n;
-  integer_type *rptr, *cptr;
-  ValueType *vptr;
+  mwSize                 n;
+  integer_type *         rptr, *cptr;
+  ValueType *            vptr;
   std::vector<ValueType> buf;  // only used in complex and no interleaved
   convert_crs_mx2pointer(std::string("hifir4m:factorize"), rowptr, colind,
                          &rptr, &cptr, &n);
@@ -383,9 +383,9 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
     mexErrMsgIdAndTxt("hifir4m:M_solve_inner:badRhsSize",
                       "rhs size does not agree with lhs or M");
 
-  mwSize n;
-  integer_type *rptr, *cptr;
-  ValueType *vptr;
+  mwSize                 n;
+  integer_type *         rptr, *cptr;
+  ValueType *            vptr;
   std::vector<ValueType> buf;
   convert_crs_mx2pointer(std::string("hifir4m:M_solve_inner"), rowptr, colind,
                          &rptr, &cptr, &n);
@@ -393,14 +393,14 @@ inline double M_solve(int id, const mxArray *rowptr, const mxArray *colind,
 
   bool local_buf = false;
   if (*rptr != 0) {
-    local_buf = true;
+    local_buf             = true;
     integer_type *ptr_bak = rptr;
     rptr = (integer_type *)mxMalloc((n + 1) * sizeof(integer_type));
     const auto index_base = ptr_bak[0];
     for (mwSize i(0); i < n + 1; ++i) rptr[i] = ptr_bak[i] - index_base;
-    ptr_bak = cptr;
-    const mwSize nnz = rptr[n] - index_base;
-    cptr = (integer_type *)mxMalloc(sizeof(integer_type) * nnz);
+    ptr_bak          = cptr;
+    const mwSize nnz = rptr[n];
+    cptr             = (integer_type *)mxMalloc(sizeof(integer_type) * nnz);
     for (mwSize i(0); i < nnz; ++i) cptr[i] = ptr_bak[i] - index_base;
   }
 
@@ -493,8 +493,8 @@ inline double M_multiply(int id, const mxArray *rhs, mxArray *lhs,
  */
 template <bool IsMixed, class ValueType = double>
 inline void M_export(int id, const bool destroy, mxArray **hilu) {
-  using data_t = HIFIR4M_Database<IsMixed, ValueType>;
-  using crs_t = typename data_t::prec_t::crs_type;
+  using data_t  = HIFIR4M_Database<IsMixed, ValueType>;
+  using crs_t   = typename data_t::prec_t::crs_type;
   using value_t = typename crs_t::value_type;
   static constexpr mxComplexity DTYPE =
       std::is_floating_point<ValueType>::value ? mxREAL : mxCOMPLEX;
@@ -516,7 +516,7 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
                                      "F",     "s_row", "s_col", "p",
                                      "p_inv", "q",     "q_inv"};
 
-  value_t *vptr1, *vptr2, *vptr3, *vptr4, *vptr5;
+  value_t *            vptr1, *vptr2, *vptr3, *vptr4, *vptr5;
   std::vector<value_t> vbuf1, vbuf2, vbuf3, vbuf4, vbuf5;
 
   // initialize cell array (hilu)
@@ -563,9 +563,9 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
          *s_col = mxCreateUninitNumericMatrix(
              n, 1, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, mxREAL);
     // row/column permutation arrays
-    auto *p = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
+    auto *p     = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
          *p_inv = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
-         *q = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
+         *q     = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL),
          *q_inv = mxCreateUninitNumericMatrix(n, 1, mxINT64_CLASS, mxREAL);
 
     get_num_data(L_val, &vptr1, vbuf1);
@@ -706,7 +706,7 @@ inline void M_export(int id, const bool destroy, mxArray **hilu) {
     // check for last level
     if (iter->is_last_level()) {
       typename crs_t::size_type nrows, ncols;
-      value_t *dummy(nullptr);
+      value_t *                 dummy(nullptr);
       iter->inquire_or_export_dense(dummy, nrows, ncols, destroy);
       auto *mat = mxCreateUninitNumericMatrix(
           nrows, ncols, IsMixed ? mxSINGLE_CLASS : mxDOUBLE_CLASS, DTYPE);
