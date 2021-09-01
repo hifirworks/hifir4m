@@ -188,6 +188,8 @@ inline hif::Options create_opt_from_struct(const mxArray *rhs) {
   opt.beta          = get_field("beta");
   opt.is_symm       = get_field("is_symm");
   opt.no_pre        = get_field("no_pre");
+  opt.nzp_thres     = get_field("nzp_thres");
+  opt.dense_thres   = get_field("dense_thres");
   return opt;
 }
 
