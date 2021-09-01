@@ -1,9 +1,11 @@
-function build_hifir4m(varargin)
+function build_hifir4m(force, isInt64)
 % script for building hifir4m for MATLAB and GNU Octave
 
-if nargin < 1
-    force = false;
-end
+if nargin < 1; force = false; end
+if nargin < 2; isInt64 = true; end
+
+int32Flag = '';
+if ~isInt64; int32Flag = '-DHIFIR4M_USE_32INT'; end
 
 mods = {'mex/hifir4m_mex', ...
     'mex/private/hifir4m_ijv2crs', ...
@@ -46,6 +48,7 @@ for m = 1:length(mods)
     cmd = [mexCmd ' ' ...
         'LDFLAGS="$LDFLAGS -fopenmp" ' ... % OpenMP linker flag
         'CXXFLAGS="$CXXFLAGS -m64 -march=native -O3 -std=c++11 ' ...
+        int32Flag ' ' ...
         '-ffast-math -fcx-limited-range -fopenmp" ' ... % C++11/OpenMP compiler
         '-I''' fullfile(pathToHifir, 'src') ''' ' ... % include
         '-output ''' mx ''' ''' src '''' sysFlags];  % link to system libraries
