@@ -34,6 +34,16 @@ classdef Hifir < handle
             [varargout{1:nargout}] = hifApply(h, x, varargin{:});
         end
 
+        function update(h, A)
+            % Update coefficient matrix used in iterative refinement
+            h = hifUpdate(h, A);
+        end
+
+        function varargout = refactorize(h, S, varargin)
+            % Refactorization
+            [varargout{1:nargout}] = hifRefactorize(h, S, varargin{:});
+        end
+
         function delete(h)
             % Destructor for handle
             if ~isempty(h.hdl)
