@@ -16,7 +16,7 @@ Note that for the first time, `hifir4m` will download C++ package [HIFIR](https:
 
 ```console
 cd /path/to/hifir4m
-env HIFIR_VERSION=0.1.0 wget -qO- https://github.com/hifirworks/hifir/archive/refs/tags/v${HIFIR_VERSION}.tar.gz|tar xzf -
+wget -qO- https://github.com/hifirworks/hifir/archive/refs/tags/v`cat VERSION`.tar.gz|tar xzf -
 ```
 
 ## Usage ##
