@@ -22,9 +22,11 @@ env HIFIR_VERSION=0.1.0 wget -qO- https://github.com/hifirworks/hifir/archive/re
 ## Usage ##
 
 The easiest way to use `hifir4m` is to call the `gmresHifir` interface. For example,
+
 ```matlab
 >> [x, flag, relres, iter, reshis, times] = gmresHifir(A, b);
 ```
+
 where `A` is a MATLAB's built-in sparse matrix or a `MATLAB` `struct` containing the filds of `row_ptr`, `col_ind`, `vals` of a standard CRS storage format, and `b` is a right-hand-side vector (or RHS vectors with two columns).
 
 To access the intermediate-level interfaces of `hifir4m`, please see `gmresHifir.m` for the calling sequence of `hifCreate`, `hifApply`, and `hifDestroy`.
@@ -36,6 +38,7 @@ To access the intermediate-level interfaces of `hifir4m`, please see `gmresHifir
 The software suite is released under a dual-license model. For academic users, individual users, or open-source software developers, you can use HIFIR under the GPLv3+ license free of charge for research and evaluation purpose. For commercial users, separate commercial licenses are available through the Stony Brook University.  For inqueries regarding commercial licenses, please contact Prof. Xiangmin Jiao <xiangmin.jiao@stonybrook.edu>.
 
 ## How to Cite `HIFIR` ##
+
 If you use `HIFIR`,  `hifir4m`, or `hifir4py` in your research for nonsingular systems, please cite the `HILUCSI` paper:
 
 ```bibtex
@@ -53,11 +56,11 @@ If you use them to solve highly ill-conditioned of singular systems, please cite
 ```bibtex
 @Article{jiao2020approximate,
   author  = {Xiangmin Jiao and Qiao Chen},
-  journal = {arxiv},
+  journal = {SIAM J. Matrix Anal. Appl.},
   title   = {Approximate Generalized Inverses with Iterative Refinement for 
              $\epsilon$-Accurate Preconditioning of Singular Systems},
-  year    = {2020},
-  note    = {arXiv:2009.01673},
+  year    = {2021},
+  note    = {To appear},
 }
 
 @Article{chen2021hifir,
@@ -66,7 +69,7 @@ If you use them to solve highly ill-conditioned of singular systems, please cite
              for Preconditioning Ill-conditioned and Singular Systems},
   journal = {arxiv},
   year    = {2021},
-  note    = {arXiv:21...},
+  note    = {arXiv:2106.09877},
 }
 ```
 
