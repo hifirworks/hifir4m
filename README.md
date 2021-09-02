@@ -4,7 +4,15 @@
 
 ## Installation ##
 
-Clone this project to your preferred location. Then start MATLAB or GNU Octave under the directory that contains `hifir4m`, or run the command
+Clone this project to your preferred location, i.e.,
+
+```console
+git clone -b release https://github.com/hifirworks/hifir4m.git
+```
+
+Use `git pull` to download any new changes that have been added since `git clone` or last `git pull`. Alternatively, use `git checkout v[GLOBAL].[MAJOR].[MINOR]` to download a specific version.
+
+Then start MATLAB or GNU Octave under the directory that contains `hifir4m`, or run the command
 
 ```matlab
 >> run('/path/to/hifir4m/startup_hifir')
