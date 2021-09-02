@@ -11,6 +11,9 @@ function [x, us, vs, flag, relres, iter, resids, times] = ...
 %        presently required but will be optional in the future.)
 %
 %    The optional arguments include:
+%    M: user-provided HIF preconditioner. The default value is empty indicating
+%        that this function will compute a preconditioner.
+%
 %    restart: the number of iterations before GMRES restarts. If empty or
 %        missing, the default value is 30.
 %
@@ -57,6 +60,7 @@ p = inputParser;
 
 % Initialize default arguments
 addRequired(p, 'nNull', @(x) isscalar(x) && (x>0));
+addParameter(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir'));
 addParameter(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x));
 addParameter(p, 'rtols', [1.e-6,1.e-12], @(x) numel(x)<=2);
 addParameter(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x));
@@ -89,17 +93,28 @@ else
 end
 
 % Create Hifir object
-if opts.verbose
-    fprintf(1, 'Computing hybrid incomplete factorization...\n');
-end
-
+computedHif = isempty(opts.M);
 times = zeros(4, 1);
-args = namedargs2cell(p.Unmatched);
-[hif, info, times(1)] = hifCreate(A, [], 'verbose', opts.verbose>1, args{:});
 
+if computedHif
+    if opts.verbose
+        fprintf(1, 'Computing hybrid incomplete factorization...\n');
+    end
+    args = namedargs2cell(p.Unmatched);
+    [hif, info, times(1)] = hifCreate(A, [], 'verbose', opts.verbose>1, args{:});
+else
+    if opts.verbose
+        fprintf(1, 'Using user-provided hybrid incomplete factorization...\n');
+    end
+    hif = opts.M;
+    % get info
+    info = hifir4m_mex(HifEnum.QUERY, hif.hdl);
+end
 if opts.verbose
-    fprintf(1, 'Finished in %.4g seconds \n', times(1));
-    disp(info);
+    if computedHif
+        fprintf(1, 'Finished in %.4g seconds \n', times(1));
+        disp(info);
+    end
     fprintf(1, 'Computing left null space ...\n');
 end
 
