@@ -22,4 +22,11 @@ else
 end
 [A_struct.row_ptr, A_struct.col_ind, A_struct.val] = hifir4m_ijv2crs(m, rs, ...
     cs, vs);
+if ~isint64
+    A_struct.nrows = int32(m);
+    A_struct.ncols = int32(n);
+else
+    A_struct.nrows = int64(m);
+    A_struct.ncols = int64(n);
+end
 end

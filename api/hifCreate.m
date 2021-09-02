@@ -37,36 +37,37 @@ hif = hifir4m_mex(HifEnum.CREATE, params.is_mixed, params.is_complex);
 if issparse(A)
     Astruct = hifir4m_sp2crs(A);
 else
+    Astruct = A;
     if hifir4m_isint64
         if ~isa(A.row_ptr, 'int64')
             Astruct.row_ptr = int64(A.row_ptr);
             Astruct.col_ind = int64(A.col_ind);
         end
-    elseif ~isint64
+    else
         if ~isa(A.row_ptr, 'int32')
             Astruct.row_ptr = int32(A.row_ptr);
             Astruct.col_ind = int32(A.col_ind);
         end
     end
-    Astruct.val = double(A.val);
 end
-Astruct.nrows = int32(numel(Astruct.row_ptr)-1);
 
 if nargin <= 1 || isempty(S)
     Sstruct = Astruct;
+elseif issparse(S)
+    Sstruct = hifir4m_sp2crs(S);
 else
-    if hifir4m_isint64
-        if ~isa(S.row_ptr, 'int64')
-            Sstruct.row_ptr = int64(S.row_ptr);
-            Sstruct.col_ind = int64(S.col_ind);
-        end
-    elseif ~isint64
-        if ~isa(S.row_ptr, 'int32')
-            Sstruct.row_ptr = int32(S.row_ptr);
-            Sstruct.col_ind = int32(S.col_ind);
-        end
+    Sstruct = S;
+end
+if hifir4m_isint64
+    if ~isa(Sstruct.row_ptr, 'int64')
+        Sstruct.row_ptr = int64(Sstruct.row_ptr);
+        Sstruct.col_ind = int64(Sstruct.col_ind);
     end
-    Sstruct.val = double(S.val);
+else
+    if ~isa(Sstruct.row_ptr, 'int32')
+        Sstruct.row_ptr = int32(Sstruct.row_ptr);
+        Sstruct.col_ind = int32(Sstruct.col_ind);
+    end
 end
 
 [varargout{1:nargout-1}] = hifir4m_mex(HifEnum.FACTORIZE, hif, ...

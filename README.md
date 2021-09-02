@@ -4,13 +4,28 @@
 
 ## Installation ##
 
-Clone this project to your preferred location. Then start MATLAB or GNU Octave under the directory that contains `hifir4m`, or run the command
+Clone this project to your preferred location, i.e.,
+
+```console
+git clone -b release https://github.com/hifirworks/hifir4m.git
+```
+
+Use `git pull` to download any new changes that have been added since `git clone` or last `git pull`. Alternatively, use `git checkout v[GLOBAL].[MAJOR].[MINOR]` to download a specific version.
+
+Then start MATLAB or GNU Octave under the directory that contains `hifir4m`, or run the command
 
 ```matlab
->> run('/path/to/hifir4m/load_hifir')
+>> run('/path/to/hifir4m/startup_hifir')
 ```
 
 (and replace `/path/to/hifir4m/` to the directory that contains `hifir4m`) bo build `hifir4m` and load its path. It will build the *mex* kernels if needed by linking to MATLAB and Octave's built-in BLAS/LAPACK libraries for the low-level QRCP.
+
+Note that for the first time, `hifir4m` will download C++ package [HIFIR](https://github.com/hifirworks/hifir) while building *mex* kernels. If you don't have access to network during building *mex* kernels, then you can obtain HIFIR beforehand and put its source in `hifir4m/hifir-[hifir-version]` folder; for instance, you can run the following command to download the C++ HIFIR package
+
+```console
+cd /path/to/hifir4m
+wget -qO- https://github.com/hifirworks/hifir/archive/refs/tags/v`cat VERSION`.tar.gz|tar xzf -
+```
 
 ## Usage ##
 
@@ -18,6 +33,7 @@ The easiest way to use `hifir4m` is to call the `gmresHif` interface. For exampl
 ```matlab
 >> [x, flag, relres, iter, reshis, times] = gmresHif(A, b);
 ```
+
 where `A` is a MATLAB's built-in sparse matrix or a `MATLAB` `struct` containing the filds of `row_ptr`, `col_ind`, `vals` of a standard CRS storage format, and `b` is a right-hand-side vector (or RHS vectors with two columns).
 
 To access the intermediate-level interfaces of `hifir4m`, please see `gmresHif.m` for the calling sequence of `hifCreate`, `hifApply`, and `hifDestroy`.
@@ -29,6 +45,7 @@ To access the intermediate-level interfaces of `hifir4m`, please see `gmresHif.m
 The software suite is released under a dual-license model. For academic users, individual users, or open-source software developers, you can use HIFIR under the GPLv3+ license free of charge for research and evaluation purpose. For commercial users, separate commercial licenses are available through the Stony Brook University.  For inqueries regarding commercial licenses, please contact Prof. Xiangmin Jiao <xiangmin.jiao@stonybrook.edu>.
 
 ## How to Cite `HIFIR` ##
+
 If you use `HIFIR`,  `hifir4m`, or `hifir4py` in your research for nonsingular systems, please cite the `HILUCSI` paper:
 
 ```bibtex
@@ -38,7 +55,6 @@ If you use `HIFIR`,  `hifir4m`, or `hifir4py` in your research for nonsingular s
              large-scale saddle-point problems from {PDE}s},
   journal = {Numer. Linear Algebra Appl.},
   year    = {2021},
-  note    = {To appear},
   doi     = {10.1002/nla.2400},
 ```
 
@@ -47,20 +63,20 @@ If you use them to solve highly ill-conditioned of singular systems, please cite
 ```bibtex
 @Article{jiao2020approximate,
   author  = {Xiangmin Jiao and Qiao Chen},
-  journal = {arxiv},
+  journal = {SIAM J. Matrix Anal. Appl.},
   title   = {Approximate Generalized Inverses with Iterative Refinement for 
              $\epsilon$-Accurate Preconditioning of Singular Systems},
-  year    = {2020},
-  note    = {arXiv:2009.01673},
+  year    = {2021},
+  note    = {To appear},
 }
 
 @Article{chen2021hifir,
-  author  = {Jiao, Xiangmin and Chen, Qiao},
+  author  = {Chen, Qiao and Jiao, Xiangmin},
   title   = {{HIFIR}: Hybrid Incomplete Factorization with Iterative Refinement 
              for Preconditioning Ill-conditioned and Singular Systems},
   journal = {arxiv},
   year    = {2021},
-  note    = {arXiv:21...},
+  note    = {arXiv:2106.09877},
 }
 ```
 

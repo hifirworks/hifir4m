@@ -1,9 +1,9 @@
 function [x, flag, relres, iter, resids, times] = gmresHif(A, b, varargin)
 % gmresHif  Restarted GMRES with HIF as right preconditioner
 %
-%       x = gmresHif(A, b [, restart, rtol, maxit, x0])
+%       x = gmresHif(A, b [, M, restart, rtol, maxit, x0])
 %
-%    solves a sparse linear system using HIF as the right preconditioner.
+%    solves a sparse linear system using HIF as the preconditioner.
 %    Matrix A can be in MATLAB's built-in sparse format or in CRS struct
 %    with row_ptr, col_ind, and vals fields.
 %
@@ -17,9 +17,16 @@ function [x, flag, relres, iter, resids, times] = gmresHif(A, b, varargin)
 %    the default value is 500. (Note that unlike MATLAB's built-in gmres,
 %    maxit here refers to the total number of iterations.)
 %
+%    x0 specifies the initial guess.
+%
 %       x = gmresHif(A, b, ..., 'name', value, ...)
 %    allows omitting some of the optional arguments followed by name-value
 %    pairs for the parameters. The parameters include:
+%       M:        HIF preconditioner. Default is [], which means this
+%                 function will compute a HIF preconditioner. For dynamic
+%                 and/or nonlinear problem, it is preferable to allow
+%                 the users to manage preconditioners outside of this
+%                 function.
 %       verbose:  verbose level. Default is 1.
 %       pcside:   Side of preconditioner ('left' or 'right'). If 'left',
 %                 MATLAB built-in GMRES will be called. Default is 'right'.
@@ -46,11 +53,12 @@ end
 p = inputParser;
 
 % Initialize default arguments
-addOptional(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x) && (x>0));
-addOptional(p, 'rtol', 1.e-6, @(x) isempty(x) || isscalar(x) && (x>0));
-addOptional(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x) && (x>0));
-addOptional(p, 'x0', cast([], class(b)), ...
-    @(x) isempty(x) || isequal(size(x0), size(b)));
+addParameter(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir'));
+addParameter(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x));
+addParameter(p, 'rtol', 1.e-6, @(x) isempty(x) || isscalar(x));
+addParameter(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x));
+addParameter(p, 'x0', cast([], class(b)), ...
+    @(x) isempty(x) || isequal(size(x), size(b)));
 
 addParameter(p, 'verbose', int32(1), @isscalar);
 addParameter(p, 'pcside', 'right', ...
@@ -63,31 +71,40 @@ parse(p, varargin{:});
 
 opts = p.Results;
 % Process positional arguments
-if isempty(opts.restart)
+if isempty(opts.restart) || opts.restart <= 0
     opts.restart = 30;
 end
-if isempty(opts.maxit)
+if isempty(opts.maxit) || opts.maxit <= 0
     opts.maxit = 500;
 end
-if isempty(opts.rtol)
-    opts.rtol = 1.-6;
+if isempty(opts.rtol) || opts.rtol <= 0
+    opts.rtol = 1.e-6;
 end
 
 % Create Hifir object
-if opts.verbose
-    fprintf(1, 'Computing hybrid factorization...\n');
-end
-
+computedHif = isempty(opts.M);
 times = zeros(2, 1);
-args = namedargs2cell(p.Unmatched);
-[hif, info, times(1)] = hifCreate(A, [], 'verbose', ...
-    opts.verbose>1, args{:});
+if computedHif
+    if opts.verbose
+        fprintf(1, 'Computing hybrid incomplete factorization...\n');
+    end
+    args = namedargs2cell(p.Unmatched);
+    [hif, info, times(1)] = hifCreate(A, [], 'verbose', ...
+        opts.verbose>1, args{:});
+else
+    if opts.verbose
+        fprintf(1, 'Using user-provided hybrid incomplete factorization...\n');
+    end
+    hif = opts.M;
+end
 M = @(x) hifApply(hif, x);
 
 if opts.verbose
-    fprintf(1, 'Finished ILU factorization in %.4g seconds \n', times(1));
-    disp(info);
-    fprintf(1, 'Starting Krylov solver ...\n');
+    if computedHif
+        fprintf(1, 'Computed HIF factorization in %.4g seconds \n', times(1));
+        disp(info);
+    end
+    fprintf(1, 'Starting GMRES with HIF as right-preconditioner...\n');
 end
 
 tic;
@@ -107,7 +124,7 @@ times(2) = toc;
 
 if opts.verbose
     if flag == 0
-        fprintf(1, 'Finished solve in %d iterations and %.2f seconds.\n', iter, times(2));
+        fprintf(1, 'Computed solution in %d iterations and %.4g seconds.\n', iter, times(2));
     elseif flag == 3
         fprintf(1, 'GMRES stagnated after %d iterations and %.4g seconds.\n', iter, times(2));
     else
