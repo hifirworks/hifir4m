@@ -53,11 +53,11 @@ end
 p = inputParser;
 
 % Initialize default arguments
-addOptional(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir'));
-addOptional(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x));
-addOptional(p, 'rtol', 1.e-6, @(x) isempty(x) || isscalar(x));
-addOptional(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x));
-addOptional(p, 'x0', cast([], class(b)), ...
+addParameter(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir'));
+addParameter(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x));
+addParameter(p, 'rtol', 1.e-6, @(x) isempty(x) || isscalar(x));
+addParameter(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x));
+addParameter(p, 'x0', cast([], class(b)), ...
     @(x) isempty(x) || isequal(size(x), size(b)));
 
 addParameter(p, 'verbose', int32(1), @isscalar);
