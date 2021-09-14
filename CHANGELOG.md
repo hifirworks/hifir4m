@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 Changes from [v0.1.0](https://github.com/hifirworks/hifir4m/releases/tag/v0.1.0):
 
-- Extended `M` parameter of `gmresHif` to allow function handle inputs.
+- Extended the `M` parameter of `gmresHif` to allow a function handle as input.
 
 [Full Changelog](https://github.com/hifirworks/hifir4m/compare/v0.1.0...HEAD)
 
