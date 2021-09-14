@@ -22,11 +22,12 @@ function [x, flag, relres, iter, resids, times] = gmresHif(A, b, varargin)
 %       x = gmresHif(A, b, ..., 'name', value, ...)
 %    allows omitting some of the optional arguments followed by name-value
 %    pairs for the parameters. The parameters include:
-%       M:        HIF preconditioner. Default is [], which means this
-%                 function will compute a HIF preconditioner. For dynamic
-%                 and/or nonlinear problem, it is preferable to allow
-%                 the users to manage preconditioners outside of this
-%                 function.
+%       M:        Preconditioner. By default it is empty, which will build
+%                 a HIF preconditioner with default parameters. In
+%                 addition, it can also be a user-provided HIF
+%                 preconditioner, which allows users to manage
+%                 preconditioners outside of this function. Note that this
+%                 can also be a function handle, i.e., x=M(b);
 %       verbose:  verbose level. Default is 1.
 %       pcside:   Side of preconditioner ('left' or 'right'). If 'left',
 %                 MATLAB built-in GMRES will be called. Default is 'right'.
@@ -53,7 +54,8 @@ end
 p = inputParser;
 
 % Initialize default arguments
-addParameter(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir'));
+addParameter(p, 'M', [], @(x) isempty(x) || isa(x, 'Hifir') || ...
+    isa(x, 'function_handle'));
 addParameter(p, 'restart', int32(30), @(x) isempty(x) || isscalar(x));
 addParameter(p, 'rtol', 1.e-6, @(x) isempty(x) || isscalar(x));
 addParameter(p, 'maxit', int32(500), @(x) isempty(x) || isscalar(x));
@@ -91,13 +93,19 @@ if computedHif
     args = namedargs2cell(p.Unmatched);
     [hif, info, times(1)] = hifCreate(A, [], 'verbose', ...
         opts.verbose>1, args{:});
+    M = @(x) hifApply(hif, x);
 else
     if opts.verbose
         fprintf(1, 'Using user-provided hybrid incomplete factorization...\n');
     end
     hif = opts.M;
+    % Check the type of hif
+    if isa(hif, 'Hifir')
+        M = @(x) hifApply(hif, x);
+    else
+        M = hif;
+    end
 end
-M = @(x) hifApply(hif, x);
 
 if opts.verbose
     if computedHif
