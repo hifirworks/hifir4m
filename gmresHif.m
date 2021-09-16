@@ -22,12 +22,12 @@ function [x, flag, relres, iter, resids, times] = gmresHif(A, b, varargin)
 %       x = gmresHif(A, b, ..., 'name', value, ...)
 %    allows omitting some of the optional arguments followed by name-value
 %    pairs for the parameters. The parameters include:
-%       M:        Preconditioner. By default it is empty, which will build
-%                 a HIF preconditioner with default parameters. In
-%                 addition, it can also be a user-provided HIF
-%                 preconditioner, which allows users to manage
-%                 preconditioners outside of this function. Note that this
-%                 can also be a function handle, i.e., x=M(b);
+%       M:        Preconditioner. Typically, it should be a Hifir object
+%                 created outside the function. More generally, it can be
+%                 a function handle such that M(x) applies the preconditioning
+%                 operator to x, so the can easily customize the preconditioner
+%                 outside this function. If empty, then the function would
+%                 build a HIF preconditioner with default parameters.
 %       verbose:  verbose level. Default is 1.
 %       pcside:   Side of preconditioner ('left' or 'right'). If 'left',
 %                 MATLAB built-in GMRES will be called. Default is 'right'.
@@ -95,14 +95,17 @@ if computedHif
         opts.verbose>1, args{:});
     M = @(x) hifApply(hif, x);
 else
-    if opts.verbose
-        fprintf(1, 'Using user-provided hybrid incomplete factorization...\n');
-    end
     hif = opts.M;
     % Check the type of hif
     if isa(hif, 'Hifir')
+        if opts.verbose
+            fprintf(1, 'Using user-provided hybrid incomplete factorization...\n');
+        end
         M = @(x) hifApply(hif, x);
     else
+        if opts.verbose
+            fprintf(1, 'Using user-provided preconditioning operator...\n');
+        end
         M = hif;
     end
 end
